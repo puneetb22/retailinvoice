@@ -540,6 +540,21 @@ def generate_invoice(invoice_data, save_path):
                 
                 cursor.execute("SELECT COUNT(*) FROM sale_items WHERE sale_id = ?", (invoice_id,))
                 sale_items_count = cursor.fetchone()[0]
+                
+                # Also try cross-referencing through sales table if no direct items found
+                if invoice_items_count == 0 and sale_items_count == 0:
+                    # Try to find sale_id that corresponds to this invoice
+                    cursor.execute("SELECT id FROM sales WHERE invoice_number = ?", (invoice_number,))
+                    sale_result = cursor.fetchone()
+                    if sale_result:
+                        sale_id = sale_result[0]
+                        print(f"DEBUG: Found sale_id {sale_id} for invoice_number {invoice_number}")
+                        cursor.execute("SELECT COUNT(*) FROM sale_items WHERE sale_id = ?", (sale_id,))
+                        sale_items_count = cursor.fetchone()[0]
+                        if sale_items_count > 0:
+                            # Update invoice_id to use sale_id for querying sale_items
+                            print(f"DEBUG: Using sale_id {sale_id} instead of invoice_id {invoice_id} for item lookup")
+                            invoice_id = sale_id
             
             print(f"DEBUG: Found {invoice_items_count} items in invoice_items, {sale_items_count} items in sale_items")
 
@@ -556,7 +571,7 @@ def generate_invoice(invoice_data, save_path):
 
             if invoice_items_count > 0:
                 # Query from invoice_items table
-                cursor.execute("""
+                query = """
                     SELECT 
                         COALESCE(p.name, 'Unknown Product') as product_name,
                         COALESCE(p.manufacturer, '') as company_name,
@@ -577,12 +592,15 @@ def generate_invoice(invoice_data, save_path):
                     LEFT JOIN products p ON ii.product_id = p.id
                     WHERE ii.invoice_id = ?
                     ORDER BY ii.id
-                """, (invoice_id,))
+                """
+                print(f"DEBUG: Executing invoice_items query with invoice_id: {invoice_id}")
+                cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
+                print(f"DEBUG: Query returned {len(items)} items from invoice_items")
                 
             elif sale_items_count > 0:
                 # Query from sale_items table
-                cursor.execute("""
+                query = """
                     SELECT 
                         si.product_name,
                         COALESCE(p.manufacturer, '') as company_name,
@@ -602,8 +620,11 @@ def generate_invoice(invoice_data, save_path):
                     LEFT JOIN products p ON si.product_id = p.id
                     WHERE si.sale_id = ?
                     ORDER BY si.id
-                """, (invoice_id,))
+                """
+                print(f"DEBUG: Executing sale_items query with sale_id: {invoice_id}")
+                cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
+                print(f"DEBUG: Query returned {len(items)} items from sale_items")
             
             # If still no items, try alternative approach
             if not items:
