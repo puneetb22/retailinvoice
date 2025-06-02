@@ -491,56 +491,159 @@ def generate_invoice(invoice_data, save_path):
             conn = sqlite3.connect('./pos_data.db')
             cursor = conn.cursor()
 
-            # Get invoice items with complete product details
-            cursor.execute("""
-                SELECT 
-                    p.name as product_name,
-                    p.manufacturer as company_name,
-                    COALESCE(ii.hsn_code, p.hsn_code) as hsn_code,
-                    COALESCE(ii.batch_number, b.batch_number) as batch_number,
-                    COALESCE(b.expiry_date, '') as expiry_date,
-                    ii.quantity,
-                    COALESCE(p.unit, '') as unit,
-                    ii.price_per_unit as rate,
-                    COALESCE(ii.discount_percentage, 0) as discount,
-                    ii.total_price as amount
-                FROM invoice_items ii
-                LEFT JOIN products p ON ii.product_id = p.id
-                LEFT JOIN batches b ON ii.product_id = b.product_id
-                    AND (ii.batch_number = b.batch_number OR ii.batch_number IS NULL)
-                WHERE ii.invoice_id = ?
-                ORDER BY ii.id
-            """, (invoice_id,))
+            # First, check what tables and columns we actually have
+            print(f"DEBUG: Looking for items for invoice_id: {invoice_id}")
 
-            items = cursor.fetchall()
+            # Debug: Check table schemas
+            cursor.execute("PRAGMA table_info(invoice_items)")
+            ii_schema = cursor.fetchall()
+            print(f"DEBUG: invoice_items schema: {[col[1] for col in ii_schema]}")
+            
+            cursor.execute("PRAGMA table_info(sale_items)")
+            si_schema = cursor.fetchall()
+            print(f"DEBUG: sale_items schema: {[col[1] for col in si_schema]}")
+
+            # Check if we should query invoice_items or sale_items
+            # First try invoice_items table
+            cursor.execute("SELECT COUNT(*) FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
+            invoice_items_count = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM sale_items WHERE sale_id = ?", (invoice_id,))
+            sale_items_count = cursor.fetchone()[0]
+            
+            print(f"DEBUG: Found {invoice_items_count} items in invoice_items, {sale_items_count} items in sale_items")
+
+            # Debug: Show actual data in tables
+            if invoice_items_count > 0:
+                cursor.execute("SELECT * FROM invoice_items WHERE invoice_id = ? LIMIT 1", (invoice_id,))
+                sample_ii = cursor.fetchone()
+                print(f"DEBUG: Sample invoice_items data: {sample_ii}")
+            
+            if sale_items_count > 0:
+                cursor.execute("SELECT * FROM sale_items WHERE sale_id = ? LIMIT 1", (invoice_id,))
+                sample_si = cursor.fetchone()
+                print(f"DEBUG: Sample sale_items data: {sample_si}")
+
+            if invoice_items_count > 0:
+                # Query from invoice_items table
+                cursor.execute("""
+                    SELECT 
+                        COALESCE(p.name, 'Unknown Product') as product_name,
+                        COALESCE(p.manufacturer, '') as company_name,
+                        COALESCE(ii.hsn_code, p.hsn_code, '') as hsn_code,
+                        COALESCE(ii.batch_number, '') as batch_number,
+                        COALESCE(
+                            (SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
+                             AND (batch_number = ii.batch_number OR ii.batch_number IS NULL) 
+                             ORDER BY expiry_date DESC LIMIT 1), 
+                            ''
+                        ) as expiry_date,
+                        ii.quantity,
+                        COALESCE(p.unit, '') as unit,
+                        ii.price_per_unit as rate,
+                        COALESCE(ii.discount_percentage, 0) as discount,
+                        ii.total_price as amount
+                    FROM invoice_items ii
+                    LEFT JOIN products p ON ii.product_id = p.id
+                    WHERE ii.invoice_id = ?
+                    ORDER BY ii.id
+                """, (invoice_id,))
+                items = cursor.fetchall()
+                
+            elif sale_items_count > 0:
+                # Query from sale_items table
+                cursor.execute("""
+                    SELECT 
+                        si.product_name,
+                        COALESCE(p.manufacturer, '') as company_name,
+                        COALESCE(si.hsn_code, '') as hsn_code,
+                        '' as batch_number,
+                        COALESCE(
+                            (SELECT expiry_date FROM batches WHERE product_id = si.product_id 
+                             ORDER BY expiry_date DESC LIMIT 1), 
+                            ''
+                        ) as expiry_date,
+                        si.quantity,
+                        COALESCE(p.unit, '') as unit,
+                        si.price as rate,
+                        COALESCE(si.discount_percent, 0) as discount,
+                        si.total as amount
+                    FROM sale_items si
+                    LEFT JOIN products p ON si.product_id = p.id
+                    WHERE si.sale_id = ?
+                    ORDER BY si.id
+                """, (invoice_id,))
+                items = cursor.fetchall()
+            
+            # If still no items, try alternative approach
             if not items:
-                print("No items found for invoice ID:", invoice_id)
+                print(f"DEBUG: No items found, trying alternative query approach")
+                # Try getting items from the invoices data passed in
+                items_from_data = invoice_data.get('items', [])
+                if items_from_data:
+                    # Convert the passed items to the expected format
+                    items = []
+                    for item_data in items_from_data:
+                        items.append((
+                            item_data.get('name', 'Unknown Product'),
+                            item_data.get('company', ''),
+                            item_data.get('hsn_code', ''),
+                            item_data.get('batch_no', ''),
+                            item_data.get('expiry_date', ''),
+                            item_data.get('quantity', 0),
+                            item_data.get('unit', ''),
+                            item_data.get('price', 0),
+                            item_data.get('discount', 0),
+                            item_data.get('total', 0)
+                        ))
+
+            print(f"DEBUG: Retrieved {len(items)} items for processing")
+            if items:
+                print(f"DEBUG: First item data: {items[0]}")
 
         except Exception as e:
-            print(f"Error fetching batch data from database: {e}")
+            print(f"Error fetching invoice items: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Format items with proper field mapping
         formatted_items = []
         subtotal = 0.0
         tax_total = 0.0
+        total_qty = 0
 
-        for item in items:
+        for i, item in enumerate(items):
             try:
-                # Map fields from query results
-                name = item[0] if item[0] else "Unknown Product"
-                company = item[1] if item[1] else ""
-                hsn_code = item[2] if item[2] else ""
-                batch_no = item[3] if item[3] else ""
-                expiry_date = item[4].split()[0] if item[4] else "" # Get date part only
+                # Map fields from query results with better error handling
+                name = str(item[0]) if item[0] else "Unknown Product"
+                company = str(item[1]) if item[1] else ""
+                hsn_code = str(item[2]) if item[2] else ""
+                batch_no = str(item[3]) if item[3] else ""
+                
+                # Handle expiry date formatting
+                expiry_date = ""
+                if item[4]:
+                    expiry_str = str(item[4])
+                    # Extract just the date part if it's a datetime
+                    if ' ' in expiry_str:
+                        expiry_date = expiry_str.split()[0]
+                    else:
+                        expiry_date = expiry_str
+                
                 quantity = float(item[5]) if item[5] is not None else 0
-                unit = item[6] if item[6] else ""
+                unit = str(item[6]) if item[6] else ""
                 price = float(item[7]) if item[7] is not None else 0
                 discount = float(item[8]) if item[8] is not None else 0
                 total = float(item[9]) if item[9] is not None else 0
 
+                # Add to total quantity
+                total_qty += quantity
+
+                # Format quantity and discount for display
                 qty_str = str(int(quantity)) if quantity == int(quantity) else str(quantity)
-                discount_str = f"{int(discount)}" if discount == int(discount) else f"{discount}"
+                discount_str = ""
                 if discount > 0:
+                    discount_str = f"{int(discount)}" if discount == int(discount) else f"{discount:.1f}"
                     discount_str += "%"
 
                 formatted_items.append({
@@ -555,36 +658,66 @@ def generate_invoice(invoice_data, save_path):
                     'discount': discount_str,
                     'total': total
                 })
+
+                print(f"DEBUG: Processed item {i+1}: {name}, Qty: {qty_str}, Price: {price}, Total: {total}")
+
             except Exception as e:
-                print(f"Error processing item: {str(e)}")
+                print(f"Error processing item {i}: {str(e)}")
+                # Add a placeholder item to avoid completely empty table
+                formatted_items.append({
+                    'name': f"Item {i+1} (Error)",
+                    'company': "",
+                    'hsn_code': "",
+                    'batch_no': "",
+                    'expiry_date': "",
+                    'quantity': "0",
+                    'unit': "",
+                    'price': 0,
+                    'discount': "",
+                    'total': 0
+                })
                 continue
 
 
         items_data = []
+        
+        # Always ensure we have some items to display
+        if not formatted_items:
+            print("WARNING: No formatted items found, creating placeholder")
+            # Create at least one placeholder item
+            formatted_items = [{
+                'name': 'No items found',
+                'company': '',
+                'hsn_code': '',
+                'batch_no': '',
+                'expiry_date': '',
+                'quantity': '0',
+                'unit': '',
+                'price': 0,
+                'discount': '',
+                'total': 0
+            }]
+        
         for i, item in enumerate(formatted_items, 1):
-            items_data.append([
-                str(i),
-                item['name'],
-                item['company'],
-                item['hsn_code'],
-                item['batch_no'],
-                item['expiry_date'],
-                item['quantity'],
-                item['unit'],
-                format_currency(item['price'], symbol='Rs.'),
-                item['discount'],
-                format_currency(item['total'], symbol='Rs.')
-            ])
-
-        # Do not add empty rows - only show actual products as per template requirements
-
-        # Create items table
-        # Check if items_data is empty, add at least one empty row if needed to avoid a Table error
-        if not items_data:
-            # Add a placeholder row with empty values to prevent Table error
-            empty_row = ["", "", "", "", "", "", "", "", "", "", ""]
-            items_data.append(empty_row)
-            print("No items found for invoice - adding empty placeholder row")
+            # Ensure all values are properly formatted
+            row_data = [
+                str(i),                                                    # Serial number
+                str(item.get('name', 'Unknown Product'))[:30],            # Product name (truncated)
+                str(item.get('company', ''))[:15],                        # Company name (truncated)
+                str(item.get('hsn_code', '')),                            # HSN code
+                str(item.get('batch_no', '')),                            # Batch number
+                str(item.get('expiry_date', '')),                         # Expiry date
+                str(item.get('quantity', '0')),                           # Quantity
+                str(item.get('unit', '')),                                # Unit
+                format_currency(item.get('price', 0), symbol='Rs.'),     # Rate
+                str(item.get('discount', '')),                            # Discount
+                format_currency(item.get('total', 0), symbol='Rs.')      # Amount
+            ]
+            items_data.append(row_data)
+            
+        print(f"DEBUG: Created {len(items_data)} rows for items table")
+        if items_data:
+            print(f"DEBUG: First row data: {items_data[0]}")
 
         items_table = Table(items_data, colWidths=col_widths)
         items_table.setStyle(TableStyle([
