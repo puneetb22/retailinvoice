@@ -843,4 +843,6 @@ def generate_invoice(invoice_data, save_path):
                 str(item.get('quantity', '0')),  # Quantity
                 str(item.get('unit', '')),  # Unit
                 format_currency(item.get('price', 0), symbol='Rs.'),  # Rate
-                str(item.get('discount', '')),  #
+                str(item.get('discount', '')),  # Discount
+                format_currency(item.get('total', 0), symbol='Rs.')  # Amount
+            ]
