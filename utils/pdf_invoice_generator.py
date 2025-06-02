@@ -546,12 +546,12 @@ def generate_invoice(invoice_data, save_path):
                         cursor.execute(
                             "SELECT id FROM sales WHERE invoice_number = ?",
                             (invoice_number, ))
-                        result = cursor.fetchone()
-                        if result:
-                            invoice_id = result[0]
-                            print(
-                                f"DEBUG: Found sale_id {invoice_id} for invoice_number {invoice_number}"
-                            )
+                    result = cursor.fetchone()
+                    if result:
+                        invoice_id = result[0]
+                        print(
+                            f"DEBUG: Found sale_id {invoice_id} for invoice_number {invoice_number}"
+                        )
 
             # Debug: Check table schemas
             cursor.execute("PRAGMA table_info(invoice_items)")
@@ -842,7 +842,184 @@ def generate_invoice(invoice_data, save_path):
                 str(item.get('expiry_date', '')),  # Expiry date
                 str(item.get('quantity', '0')),  # Quantity
                 str(item.get('unit', '')),  # Unit
-                format_currency(item.get('price', 0), symbol='Rs.'),  # Rate
+                format_currency(```python
+item.get('price', 0), symbol='Rs.'),  # Rate
                 str(item.get('discount', '')),  # Discount
                 format_currency(item.get('total', 0), symbol='Rs.')  # Amount
             ]
+            items_data.append(row_data)
+
+        print(f"DEBUG: Created {len(items_data)} rows for items table")
+        if items_data:
+            print(f"DEBUG: First row data: {items_data[0]}")
+
+        # Fill empty rows to maintain table height
+        min_rows = 6  # Minimum rows to show
+        while len(items_data) < min_rows:
+            empty_row = ["", "", "", "", "", "", "", "", "", "", ""]
+            items_data.append(empty_row)
+
+        # Create items table
+        items_table = Table(items_data, colWidths=col_widths)
+        items_table.setStyle(
+            TableStyle([
+                ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),  # No column center
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),  # Description left
+                ('ALIGN', (2, 0), (2, -1), 'LEFT'),  # Company left
+                ('ALIGN', (3, 0), (3, -1), 'CENTER'),  # HSN center
+                ('ALIGN', (4, 0), (4, -1), 'CENTER'),  # Batch center
+                ('ALIGN', (5, 0), (5, -1), 'CENTER'),  # Expiry center
+                ('ALIGN', (6, 0), (6, -1), 'CENTER'),  # Qty center
+                ('ALIGN', (7, 0), (7, -1), 'CENTER'),  # Unit center
+                ('ALIGN', (8, 0), (8, -1), 'RIGHT'),  # Rate right
+                ('ALIGN', (9, 0), (9, -1), 'CENTER'),  # Disc center
+                ('ALIGN', (10, 0), (10, -1), 'RIGHT'),  # Amount right
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ]))
+
+        # ------ FINANCIAL SUMMARY TABLE ------
+        # Create financial summary that matches the template layout exactly
+
+        # Calculate total amount directly from formatted_items
+        total_amount = sum(item.get('total', 0) for item in formatted_items)
+
+        # If we have payment data, use those values instead
+        if payment_data:
+            if 'total' in payment_data:
+                total_amount = float(payment_data.get('total', total_amount))
+            if 'subtotal' in payment_data:
+                subtotal = float(payment_data.get('subtotal', subtotal))
+
+        # Calculate tax amounts based on subtotal and tax rates
+        if cgst == 0 and sgst == 0:
+            # If tax amounts are not provided, calculate based on taxable value and tax rates
+            cgst = (taxable_value * cgst_rate / 100) if cgst_rate > 0 else 0
+            sgst = (taxable_value * sgst_rate / 100) if sgst_rate > 0 else 0
+
+        # Create amounts in words 
+        try:
+            amount_words = num_to_words_indian(total_amount)
+        except:
+            amount_words = "Amount calculation error"
+
+        # Financial summary data with proper formatting
+        financial_data = [
+            [
+                Paragraph(f"Total Qty : {int(total_qty)}", styles['CustomerInfo']),
+                Paragraph("Amount", styles['InvoiceLabel']),
+                Paragraph(format_currency(subtotal, symbol='Rs.'), styles['RightAligned'])
+            ],
+            [
+                Paragraph(f"Amount Chargeable (in words) <br/><b>{amount_words}</b>", styles['AmountWords']),
+                Paragraph("Discount", styles['InvoiceLabel']),
+                Paragraph(format_currency(discount, symbol='Rs.'), styles['RightAligned'])
+            ],
+            [
+                Paragraph("", styles['CustomerInfo']),
+                Paragraph("Taxable Value", styles['InvoiceLabel']),
+                Paragraph(format_currency(taxable_value, symbol='Rs.'), styles['RightAligned'])
+            ],
+            [
+                Paragraph("", styles['CustomerInfo']),
+                Paragraph(f"Central Tax (CGST) @ {cgst_rate}%", styles['InvoiceLabel']),
+                Paragraph(format_currency(cgst, symbol='Rs.'), styles['RightAligned'])
+            ],
+            [
+                Paragraph("", styles['CustomerInfo']),
+                Paragraph(f"State Tax (SGST) @ {sgst_rate}%", styles['InvoiceLabel']),
+                Paragraph(format_currency(sgst, symbol='Rs.'), styles['RightAligned'])
+            ],
+            [
+                Paragraph("", styles['CustomerInfo']),
+                Paragraph("Total Tax Amount", styles['InvoiceLabel']),
+                Paragraph(format_currency(cgst + sgst, symbol='Rs.'), styles['RightAligned'])
+            ],
+            [
+                Paragraph("", styles['CustomerInfo']),
+                Paragraph("Total Amount", styles['InvoiceLabel']),
+                Paragraph(format_currency(total_amount, symbol='Rs.'), styles['RightAligned'])
+            ]
+        ]
+
+        # If there's outstanding amount, add it to the summary
+        if outstanding_amount > 0:
+            financial_data.append([
+                Paragraph("", styles['CustomerInfo']),
+                Paragraph("Outstanding Amount", styles['InvoiceLabel']),
+                Paragraph(format_currency(outstanding_amount, symbol='Rs.'), styles['RightAligned'])
+            ])
+
+        financial_table = Table(financial_data, colWidths=[
+            doc.width * 0.5,  # Amount in words section (left)
+            doc.width * 0.25,  # Labels (center)
+            doc.width * 0.25   # Values (right)
+        ])
+        financial_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),    # Amount in words left
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),    # Labels left
+            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),   # Values right
+            ('SPAN', (0, 1), (0, 1)),  # Span amount in words cell
+        ]))
+
+        # ------ TERMS AND CONDITIONS SECTION ------
+        terms_data = [[
+            Paragraph(
+                "Terms and Conditions:<br/>"
+                "1. Goods once sold will not be taken back<br/>"
+                "2. Interest @ 18% p.a. will be charged if the payment is not received within 30 days<br/>"
+                "3. Subject to Maharashtra Jurisdiction only", 
+                styles['Terms']
+            )
+        ]]
+
+        terms_table = Table(terms_data, colWidths=[doc.width])
+        terms_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+
+        # ------ SIGNATURE SECTION ------
+        signature_data = [[
+            Paragraph("Customer's Signature", styles['Terms']),
+            Paragraph(f"for {shop_name}<br/>Authorised Signatory", styles['Terms'])
+        ]]
+
+        signature_table = Table(signature_data, colWidths=[doc.width*0.5, doc.width*0.5])
+        signature_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 15),  # Add some space for actual signatures
+        ]))
+
+        # Assemble all elements
+        elements.append(shop_name_table)
+        elements.append(shop_info_table)
+        elements.append(customer_info_table)
+        elements.append(items_header_table)
+        elements.append(items_table)
+        elements.append(financial_table)
+        elements.append(terms_table)
+        elements.append(signature_table)
+
+        # Build the PDF
+        doc.build(elements)
+
+        return True
+
+    except Exception as e:
+        print(f"Error generating invoice: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
