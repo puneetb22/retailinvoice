@@ -1,3 +1,4 @@
+
 """
 PDF Invoice Generator for POS system
 Generates invoices matching exactly the shop_bill.pdf template
@@ -265,13 +266,14 @@ def generate_invoice(invoice_data, save_path):
         invoice_date = date_obj.strftime('%d/%m/%Y')
         invoice_time = invoice_data.get('time', date_obj.strftime('%I:%M %p'))
 
-        # Customer information
+        # Customer information - Fixed to properly fetch email
         customer_name = customer_data.get('name', 'Walk-in Customer')
         customer_phone = customer_data.get('phone', '')
         customer_address = customer_data.get('address', '')
         customer_village = customer_data.get('village', '')
         if customer_village and not customer_village in customer_address:
             customer_address = f"{customer_address}, {customer_village}"
+        # Fix: Properly fetch customer email
         customer_email = customer_data.get('email', '')
         customer_gstin = customer_data.get('gstin', '')
 
@@ -489,7 +491,7 @@ def generate_invoice(invoice_data, save_path):
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
         ]))
 
-        # Get items with proper schema mapping
+        # Get items with proper schema mapping and aggregation
         items = []
         total_qty = 0
         formatted_items = []
@@ -570,7 +572,7 @@ def generate_invoice(invoice_data, save_path):
                 print(f"DEBUG: Sample sale_items data: {sample_si}")
 
             if invoice_items_count > 0:
-                # Query from invoice_items table with proper batch number handling
+                # Query from invoice_items table with proper batch number handling and aggregation
                 query = """
                     SELECT 
                         COALESCE(p.name, 'Unknown Product') as product_name,
@@ -582,24 +584,26 @@ def generate_invoice(invoice_data, save_path):
                              ORDER BY expiry_date DESC LIMIT 1), 
                             ''
                         ) as expiry_date,
-                        ii.quantity,
+                        SUM(ii.quantity) as quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         ii.price_per_unit as rate,
                         COALESCE(ii.discount_percentage, 0) as discount,
-                        ii.total_price as amount
+                        SUM(ii.total_price) as amount,
+                        ii.product_id
                     FROM invoice_items ii
                     LEFT JOIN products p ON ii.product_id = p.id
                     LEFT JOIN batches b ON ii.product_id = b.product_id AND ii.batch_number = b.batch_number
                     WHERE ii.invoice_id = ?
+                    GROUP BY ii.product_id, ii.price_per_unit, ii.discount_percentage, COALESCE(ii.batch_number, b.batch_number, '')
                     ORDER BY ii.id
                 """
-                print(f"DEBUG: Executing invoice_items query with invoice_id: {invoice_id}")
+                print(f"DEBUG: Executing aggregated invoice_items query with invoice_id: {invoice_id}")
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(f"DEBUG: Query returned {len(items)} items from invoice_items")
+                print(f"DEBUG: Query returned {len(items)} aggregated items from invoice_items")
                 
             elif sale_items_count > 0:
-                # Query from sale_items table with proper batch number handling
+                # Query from sale_items table with proper batch number handling and aggregation
                 query = """
                     SELECT 
                         si.product_name,
@@ -611,21 +615,23 @@ def generate_invoice(invoice_data, save_path):
                              ORDER BY expiry_date DESC LIMIT 1), 
                             ''
                         ) as expiry_date,
-                        si.quantity,
+                        SUM(si.quantity) as quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         si.price as rate,
                         COALESCE(si.discount_percent, 0) as discount,
-                        si.total as amount
+                        SUM(si.total) as amount,
+                        si.product_id
                     FROM sale_items si
                     LEFT JOIN products p ON si.product_id = p.id
                     LEFT JOIN batches b ON si.product_id = b.product_id
                     WHERE si.sale_id = ?
+                    GROUP BY si.product_id, si.price, si.discount_percent, COALESCE(b.batch_number, '')
                     ORDER BY si.id
                 """
-                print(f"DEBUG: Executing sale_items query with sale_id: {invoice_id}")
+                print(f"DEBUG: Executing aggregated sale_items query with sale_id: {invoice_id}")
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(f"DEBUG: Query returned {len(items)} items from sale_items")
+                print(f"DEBUG: Query returned {len(items)} aggregated items from sale_items")
             
             # If still no items, try alternative approach
             if not items:
@@ -634,20 +640,49 @@ def generate_invoice(invoice_data, save_path):
                 items_from_data = invoice_data.get('items', [])
                 if items_from_data:
                     print(f"DEBUG: Found {len(items_from_data)} items in invoice_data")
-                    # Convert the passed items to the expected format
-                    items = []
+                    # Convert the passed items to the expected format and aggregate by product
+                    product_aggregation = {}
                     for item_data in items_from_data:
-                        items.append((
+                        product_key = (
+                            item_data.get('product_id', 0),
                             item_data.get('name', 'Unknown Product'),
-                            item_data.get('company', ''),
-                            item_data.get('hsn_code', ''),
-                            item_data.get('batch_no', ''),
-                            item_data.get('expiry_date', ''),
-                            item_data.get('quantity', 0),
-                            item_data.get('unit', ''),
                             item_data.get('price', 0),
                             item_data.get('discount', 0),
-                            item_data.get('total', 0)
+                            item_data.get('batch_no', '')
+                        )
+                        
+                        if product_key in product_aggregation:
+                            # Aggregate quantity and total
+                            product_aggregation[product_key]['quantity'] += item_data.get('quantity', 0)
+                            product_aggregation[product_key]['total'] += item_data.get('total', 0)
+                        else:
+                            product_aggregation[product_key] = {
+                                'name': item_data.get('name', 'Unknown Product'),
+                                'company': item_data.get('company', ''),
+                                'hsn_code': item_data.get('hsn_code', ''),
+                                'batch_no': item_data.get('batch_no', ''),
+                                'expiry_date': item_data.get('expiry_date', ''),
+                                'quantity': item_data.get('quantity', 0),
+                                'unit': item_data.get('unit', ''),
+                                'price': item_data.get('price', 0),
+                                'discount': item_data.get('discount', 0),
+                                'total': item_data.get('total', 0)
+                            }
+                    
+                    # Convert aggregated items back to list format
+                    items = []
+                    for product_key, aggregated_item in product_aggregation.items():
+                        items.append((
+                            aggregated_item['name'],
+                            aggregated_item['company'],
+                            aggregated_item['hsn_code'],
+                            aggregated_item['batch_no'],
+                            aggregated_item['expiry_date'],
+                            aggregated_item['quantity'],
+                            aggregated_item['unit'],
+                            aggregated_item['price'],
+                            aggregated_item['discount'],
+                            aggregated_item['total']
                         ))
                 else:
                     print("DEBUG: No items found in invoice_data either")
@@ -749,7 +784,6 @@ def generate_invoice(invoice_data, save_path):
 
         # Use calculated subtotal from items instead of payment data
         subtotal = items_subtotal
-
 
         items_data = []
         
@@ -955,7 +989,7 @@ def generate_invoice(invoice_data, save_path):
 
         signature_table = Table(signature_data, colWidths=[doc.width*0.25, doc.width*0.5, doc.width*0.25])
         signature_table.setStyle(TableStyle([
-('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('SPAN', (1, 0), (1, 1)),  # Terms spans both rows
         ]))
