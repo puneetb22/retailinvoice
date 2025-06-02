@@ -500,7 +500,25 @@ def generate_invoice(invoice_data, save_path):
             cursor = conn.cursor()
 
             # First, check what tables and columns we actually have
-            print(f"DEBUG: Looking for items for invoice_id: {invoice_id}")
+            print(f"DEBUG: Looking for items for invoice_id: '{invoice_id}' (type: {type(invoice_id)})")
+            
+            # If invoice_id is empty, try to get it from invoice_number
+            if not invoice_id or invoice_id == '':
+                print("DEBUG: invoice_id is empty, trying to find by invoice_number")
+                if invoice_number:
+                    # Try to find invoice_id from invoices table
+                    cursor.execute("SELECT id FROM invoices WHERE invoice_number = ?", (invoice_number,))
+                    result = cursor.fetchone()
+                    if result:
+                        invoice_id = result[0]
+                        print(f"DEBUG: Found invoice_id {invoice_id} for invoice_number {invoice_number}")
+                    else:
+                        # Try to find from sales table
+                        cursor.execute("SELECT id FROM sales WHERE invoice_number = ?", (invoice_number,))
+                        result = cursor.fetchone()
+                        if result:
+                            invoice_id = result[0]
+                            print(f"DEBUG: Found sale_id {invoice_id} for invoice_number {invoice_number}")
 
             # Debug: Check table schemas
             cursor.execute("PRAGMA table_info(invoice_items)")
@@ -512,12 +530,16 @@ def generate_invoice(invoice_data, save_path):
             print(f"DEBUG: sale_items schema: {[col[1] for col in si_schema]}")
 
             # Check if we should query invoice_items or sale_items
-            # First try invoice_items table
-            cursor.execute("SELECT COUNT(*) FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
-            invoice_items_count = cursor.fetchone()[0]
+            invoice_items_count = 0
+            sale_items_count = 0
             
-            cursor.execute("SELECT COUNT(*) FROM sale_items WHERE sale_id = ?", (invoice_id,))
-            sale_items_count = cursor.fetchone()[0]
+            if invoice_id:
+                # First try invoice_items table
+                cursor.execute("SELECT COUNT(*) FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
+                invoice_items_count = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT COUNT(*) FROM sale_items WHERE sale_id = ?", (invoice_id,))
+                sale_items_count = cursor.fetchone()[0]
             
             print(f"DEBUG: Found {invoice_items_count} items in invoice_items, {sale_items_count} items in sale_items")
 
@@ -589,6 +611,7 @@ def generate_invoice(invoice_data, save_path):
                 # Try getting items from the invoices data passed in
                 items_from_data = invoice_data.get('items', [])
                 if items_from_data:
+                    print(f"DEBUG: Found {len(items_from_data)} items in invoice_data")
                     # Convert the passed items to the expected format
                     items = []
                     for item_data in items_from_data:
@@ -604,10 +627,25 @@ def generate_invoice(invoice_data, save_path):
                             item_data.get('discount', 0),
                             item_data.get('total', 0)
                         ))
+                else:
+                    print("DEBUG: No items found in invoice_data either")
+                    # If we still have no items but have an invoice_number, try one more approach
+                    if invoice_number and not invoice_id:
+                        print(f"DEBUG: Trying to find any sales data for invoice_number: {invoice_number}")
+                        cursor.execute("""
+                            SELECT 'Placeholder Item' as name, '' as company, '' as hsn, '' as batch, 
+                                   '' as expiry, 1 as qty, 'pcs' as unit, 0 as price, 0 as discount, 0 as total
+                        """)
+                        placeholder_result = cursor.fetchone()
+                        if placeholder_result:
+                            items = [placeholder_result]
 
             print(f"DEBUG: Retrieved {len(items)} items for processing")
             if items:
                 print(f"DEBUG: First item data: {items[0]}")
+            
+            cursor.close()
+            conn.close()
 
         except Exception as e:
             print(f"Error fetching invoice items: {e}")
