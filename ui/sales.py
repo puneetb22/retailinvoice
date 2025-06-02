@@ -3999,7 +3999,7 @@ class SalesFrame(tk.Frame):
                     "cgst": sale[11],     # cgst
                     "sgst": sale[12],     # sgst
                     "total": sale[6],     # total
-                    "method": sale[7],    # payment_type
+                    "method": str(sale[7]) if sale[7] is not None else "Cash",    # payment_type
                     "reference": sale[8]  # payment_reference
                 }
             }

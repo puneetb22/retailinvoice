@@ -278,6 +278,11 @@ def generate_invoice(invoice_data, save_path):
         # Payment information
         payment_data = invoice_data.get('payment', {})
         payment_method = payment_data.get('method', 'Cash')
+        
+        # Ensure payment_method is a string
+        if not isinstance(payment_method, str):
+            payment_method = str(payment_method) if payment_method is not None else 'Cash'
+        
         payment_status = payment_data.get('status', 'PAID')
 
         # Extract financial data
@@ -328,9 +333,11 @@ def generate_invoice(invoice_data, save_path):
 
         # Calculate outstanding amount based on payment method
         outstanding_amount = 0
-        if payment_method.upper() == "CREDIT":
+        payment_method_upper = payment_method.upper() if isinstance(payment_method, str) else str(payment_method).upper()
+        
+        if payment_method_upper == "CREDIT":
             outstanding_amount = total
-        elif payment_method.upper() == "SPLIT" and payment_data.get('split'):
+        elif payment_method_upper == "SPLIT" and payment_data.get('split'):
             split_data = payment_data.get('split', {})
             try:
                 outstanding_amount = float(split_data.get('credit_amount', 0))
@@ -338,7 +345,8 @@ def generate_invoice(invoice_data, save_path):
                 outstanding_amount = 0
 
         # If payment is partially paid, try to get the pending amount
-        if payment_status.upper() in ["PARTIALLY_PAID", "PARTIAL"]:
+        payment_status_upper = payment_status.upper() if isinstance(payment_status, str) else str(payment_status).upper()
+        if payment_status_upper in ["PARTIALLY_PAID", "PARTIAL"]:
             # Get sum of all payments made
             try:
                 payment_made = sum([float(p.get('amount', 0)) for p in payment_data.get('payments', [])])
