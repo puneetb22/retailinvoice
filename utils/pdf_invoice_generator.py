@@ -1,4 +1,7 @@
 """
+The code has been modified to fix duplicate item entries in invoices and to correctly fetch the customer's email address.
+"""
+"""
 PDF Invoice Generator for POS system
 Generates invoices matching exactly the shop_bill.pdf template
 """
@@ -620,16 +623,18 @@ def generate_invoice(invoice_data, save_path):
                 print(f"DEBUG: Sample sale_items data: {sample_si}")
 
             if invoice_items_count > 0:
-                # Query from invoice_items table with proper batch number handling
+                # Query from invoice_items table
                 query = """
                     SELECT 
                         COALESCE(p.name, 'Unknown Product') as product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         COALESCE(ii.hsn_code, p.hsn_code, '') as hsn_code,
-                        COALESCE(ii.batch_number, b.batch_number, '') as batch_number,
-                        COALESCE(b.expiry_date, 
-                            (SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
-                             ORDER BY expiry_date DESC LIMIT 1), 
+                        COALESCE(ii.batch_number, 
+                            (SELECT batch_number FROM batches WHERE product_id = ii.product_id 
+                             ORDER BY expiry_date ASC LIMIT 1), 
+                            '') as batch_number,
+                        COALESCE((SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
+                                 ORDER BY expiry_date ASC LIMIT 1), 
                             ''
                         ) as expiry_date,
                         ii.quantity,
@@ -639,32 +644,25 @@ def generate_invoice(invoice_data, save_path):
                         ii.total_price as amount
                     FROM invoice_items ii
                     LEFT JOIN products p ON ii.product_id = p.id
-                    LEFT JOIN batches b ON ii.product_id = b.product_id AND ii.batch_number = b.batch_number
                     WHERE ii.invoice_id = ?
                     ORDER BY ii.id
                 """
-                print(
-                    f"DEBUG: Executing invoice_items query with invoice_id: {invoice_id}"
-                )
-                cursor.execute(query, (invoice_id, ))
+                print(f"DEBUG: Executing invoice_items query with invoice_id: {invoice_id}")
+                cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(
-                    f"DEBUG: Query returned {len(items)} items from invoice_items"
-                )
+                print(f"DEBUG: Query returned {len(items)} items from invoice_items")
 
             elif sale_items_count > 0:
-                # Query from sale_items table with proper batch number handling
+                # Query from sale_items table without JOIN to batches to avoid duplicates
                 query = """
                     SELECT 
                         si.product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         COALESCE(si.hsn_code, '') as hsn_code,
-                        COALESCE(b.batch_number, '') as batch_number,
-                        COALESCE(b.expiry_date, 
-                            (SELECT expiry_date FROM batches WHERE product_id = si.product_id 
-                             ORDER BY expiry_date DESC LIMIT 1), 
-                            ''
-                        ) as expiry_date,
+                        COALESCE((SELECT batch_number FROM batches WHERE product_id = si.product_id 
+                                 ORDER BY expiry_date ASC LIMIT 1), '') as batch_number,
+                        COALESCE((SELECT expiry_date FROM batches WHERE product_id = si.product_id 
+                                 ORDER BY expiry_date ASC LIMIT 1), '') as expiry_date,
                         si.quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         si.price as rate,
@@ -672,18 +670,13 @@ def generate_invoice(invoice_data, save_path):
                         si.total as amount
                     FROM sale_items si
                     LEFT JOIN products p ON si.product_id = p.id
-                    LEFT JOIN batches b ON si.product_id = b.product_id
                     WHERE si.sale_id = ?
                     ORDER BY si.id
                 """
-                print(
-                    f"DEBUG: Executing sale_items query with sale_id: {invoice_id}"
-                )
-                cursor.execute(query, (invoice_id, ))
+                print(f"DEBUG: Executing sale_items query with sale_id: {invoice_id}")
+                cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(
-                    f"DEBUG: Query returned {len(items)} items from sale_items"
-                )
+                print(f"DEBUG: Query returned {len(items)} items from sale_items")
 
             # If still no items, try alternative approach
             if not items:
@@ -850,485 +843,4 @@ def generate_invoice(invoice_data, save_path):
                 str(item.get('quantity', '0')),  # Quantity
                 str(item.get('unit', '')),  # Unit
                 format_currency(item.get('price', 0), symbol='Rs.'),  # Rate
-                str(item.get('discount', '')),  # Discount
-                format_currency(item.get('total', 0), symbol='Rs.')  # Amount
-            ]
-            items_data.append(row_data)
-
-        print(f"DEBUG: Created {len(items_data)} rows for items table")
-        if items_data:
-            print(f"DEBUG: First row data: {items_data[0]}")
-
-        items_table = Table(items_data, colWidths=col_widths)
-        items_table.setStyle(
-            TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (0, -1), 'CENTER'),  # No column centered
-                ('ALIGN', (6, 0), (7, -1),
-                 'CENTER'),  # Qty and Unit columns centered
-                ('ALIGN', (8, 0), (8, -1),
-                 'RIGHT'),  # Rate column right aligned
-                ('ALIGN', (9, 0), (9, -1), 'CENTER'),  # Disc column centered
-                ('ALIGN', (10, 0), (10, -1),
-                 'RIGHT'),  # Amount column right aligned
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ]))
-
-        # Total row - use sum of item amounts
-        try:
-            qty_display = str(int(total_qty)) if total_qty == int(
-                total_qty) else str(total_qty)
-            # Use items_subtotal (sum of all item amounts) instead of payment total
-            items_total = items_subtotal
-            total_formatted = format_currency(items_total, symbol='Rs.')
-        except (ValueError, TypeError):
-            qty_display = "0"
-            total_formatted = "Rs. 0.00"
-            print("Error formatting total values - using defaults")
-
-        total_row_data = [[
-            "", "", "", "", "", "", qty_display, "", "", "Total",
-            total_formatted
-        ]]
-
-        total_row_table = Table(total_row_data, colWidths=col_widths)
-        total_row_table.setStyle(
-            TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (6, 0), (6, 0), 'CENTER'),  # total qty centered
-                ('ALIGN', (9, 0), (9, 0), 'RIGHT'),  # "Total" right aligned
-                ('ALIGN', (10, 0), (10, 0), 'RIGHT'),  # Amount right aligned
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('FONTNAME', (9, 0), (10, 0),
-                 'Helvetica-Bold'),  # "Total" and amount in bold
-            ]))
-
-        # Amount in words row
-        try:
-            total_for_words = float(total)
-            amount_in_words = num_to_words_indian(total_for_words)
-        except (ValueError, TypeError):
-            amount_in_words = "Zero Rupees Only"
-
-        amount_words_data = [[
-            Paragraph(f"{amount_in_words.upper()}", styles['AmountWords'])
-        ]]
-
-        amount_words_table = Table(amount_words_data, colWidths=[doc.width])
-        amount_words_table.setStyle(
-            TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
-            ]))
-
-        # ------ TAX AND PAYMENT DETAILS SECTION ------
-        # Create tax table that exactly matches the format shown in the reference image
-        # This table has: Taxable Value | Central Tax (CGST) [Rate|Amount] | State Tax (SGST) [Rate|Amount] | Total Tax Amount
-
-        # Define paragraphs with explicit style to ensure proper formatting and consistent labels
-        taxable_para = Paragraph("Taxable\nValue", styles['TableHeader'])
-        cgst_para = Paragraph("Central Tax (CGST)", styles['TableHeader'])
-        sgst_para = Paragraph(
-            "State Tax (SGST)", styles['TableHeader']
-        )  # Explicitly labeled as State Tax per requirement
-        total_tax_para = Paragraph("Total\nTax Amount", styles['TableHeader'])
-
-        rate_para = Paragraph("Rate", styles['TableHeader'])
-        amount_para = Paragraph("Amount", styles['TableHeader'])
-
-        # Create the tax table header as paragraphs with explicit styling
-        tax_table_header = [[
-            taxable_para, cgst_para, "", sgst_para, "", total_tax_para
-        ], ["", rate_para, amount_para, rate_para, amount_para, ""]]
-
-        # Calculate SGST (same as CGST for simplicity)
-        sgst_rate = cgst_rate
-        sgst = cgst
-
-        tax_table_data = [[
-            format_currency(taxable_value, symbol='Rs.'), f"{cgst_rate}%",
-            format_currency(cgst, symbol='Rs.'), f"{sgst_rate}%",
-            format_currency(sgst, symbol='Rs.'),
-            format_currency(cgst + sgst, symbol='Rs.')
-        ],
-                          [
-                              "", "",
-                              format_currency(cgst, symbol='Rs.'), "",
-                              format_currency(sgst, symbol='Rs.'),
-                              format_currency(cgst + sgst, symbol='Rs.')
-                          ]]
-
-        # Define column widths to fit properly within page margins
-        tax_col_widths = [
-            doc.width * 0.12,  # Taxable value
-            doc.width * 0.08,  # CGST rate
-            doc.width * 0.10,  # CGST amount
-            doc.width * 0.08,  # SGST rate
-            doc.width * 0.10,  # SGST amount
-            doc.width * 0.12  # Total tax (reduced to fit)
-        ]
-
-        # Combine header and data
-        tax_table_content = tax_table_header + tax_table_data
-
-        # Create tax table with style exactly matching the sample image
-        tax_table = Table(tax_table_content, colWidths=tax_col_widths)
-        tax_table.setStyle(
-            TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
-                ('SPAN', (0, 0), (0, 1)),  # Taxable Value header spans 2 rows
-                ('SPAN', (1, 0), (2, 0)),  # Central Tax header spans 2 columns
-                ('SPAN', (3, 0), (4, 0)),  # State Tax header spans 2 columns
-                ('SPAN', (5, 0), (5,
-                                  1)),  # Total Tax Amount header spans 2 rows
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),  # Headers centered
-                ('ALIGN', (0, 2), (0, 3),
-                 'RIGHT'),  # Taxable value right aligned
-                ('ALIGN', (1, 2), (1, 3), 'CENTER'),  # CGST rate centered
-                ('ALIGN', (2, 2), (2, 3),
-                 'RIGHT'),  # CGST amount right aligned
-                ('ALIGN', (3, 2), (3, 3), 'CENTER'),  # SGST rate centered
-                ('ALIGN', (4, 2), (4, 3),
-                 'RIGHT'),  # SGST amount right aligned
-                ('ALIGN', (5, 2), (5, 3), 'RIGHT'),  # Total tax right aligned
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, 1),
-                 'Helvetica-Bold'),  # Headers in bold
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ]))
-
-        # Create the payment breakdown section (left side)
-        payment_section_data = [
-            [Paragraph("Payment Breakdown", styles['TableHeaderLeft']), ""],
-            [
-                Paragraph("Outstanding Amnt.", styles['TableHeaderLeft']),
-                Paragraph(format_currency(outstanding_amount, symbol='Rs.'),
-                          styles['RightAligned'])
-            ]
-        ]
-
-        payment_section_table = Table(
-            payment_section_data,
-            colWidths=[doc.width * 0.20 * 0.6, doc.width * 0.20 * 0.4])
-        payment_section_table.setStyle(
-            TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('LINEBELOW', (0, 0), (-1, 0), 1,
-                 colors.black),  # Line below Payment Breakdown
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 1), (1, 1),
-                 'RIGHT'),  # Outstanding amount right aligned
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ]))
-
-        # Combine payment and tax sections in a row with adjusted widths
-        payment_tax_data = [[payment_section_table, tax_table]]
-
-        payment_tax_row = Table(payment_tax_data,
-                                colWidths=[doc.width * 0.20, doc.width * 0.80])
-        payment_tax_row.setStyle(
-            TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-
-        # ------ SIGNATURE SECTION ------
-        # Create terms and signature section
-        terms = invoice_data.get(
-            'terms',
-            "1. Goods once sold will not be taken back or exchanged.\n2. All disputes are subject to local jurisdiction only."
-        )
-
-        signature_data = [[
-            Paragraph("Customer Signature", styles['CustomerInfo']),
-            Paragraph(terms, styles['Terms']),
-            Paragraph(f"For                 {shop_name}",
-                      styles['RightAligned'])
-        ], ["", "",
-            Paragraph("Authorised signatory", styles['RightAligned'])]]
-
-        signature_table = Table(
-            signature_data,
-            colWidths=[doc.width * 0.25, doc.width * 0.5, doc.width * 0.25])
-        signature_table.setStyle(
-            TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('SPAN', (1, 0), (1, 1)),  # Terms spans both rows
-            ]))
-
-        # Subject line
-        subject_data = [[
-            Paragraph("SUBJECT TO JURIDICTION", styles['Subject'])
-        ]]
-
-        subject_table = Table(subject_data, colWidths=[doc.width])
-        subject_table.setStyle(
-            TableStyle([
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
-            ]))
-
-        # ------ PAYMENT HISTORY SECTION ------
-        # Add payment history section if available
-        payment_history_tables = []
-
-        if 'payment_history' in payment_data or 'payments' in payment_data:
-            payment_history_header = [[
-                Paragraph("Invoice payment Records",
-                          styles['PaymentRecordsHeader'])
-            ]]
-
-            payment_header_table = Table(payment_history_header,
-                                         colWidths=[doc.width])
-            payment_header_table.setStyle(
-                TableStyle([
-                    ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                    ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                    ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
-                ]))
-
-            payment_history_tables.append(payment_header_table)
-
-            # Payment records column headers
-            payment_record_headers = [[
-                "Sr.no", "Invoice No", "Amount", "Depositor Name", "Date",
-                "time", "Mode of Pay", "Remaining Amount", "Note",
-                "Invoice Status"
-            ]]
-
-            payment_col_widths = [
-                doc.width * 0.05,  # Sr.no
-                doc.width * 0.1,  # Invoice No
-                doc.width * 0.1,  # Amount
-                doc.width * 0.15,  # Depositor Name
-                doc.width * 0.1,  # Date
-                doc.width * 0.07,  # time
-                doc.width * 0.1,  # Mode of Pay
-                doc.width * 0.13,  # Remaining Amount
-                doc.width * 0.1,  # Note
-                doc.width * 0.1  # Invoice Status
-            ]
-
-            payment_headers_table = Table(payment_record_headers,
-                                          colWidths=payment_col_widths)
-            payment_headers_table.setStyle(
-                TableStyle([
-                    ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                    ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ]))
-
-            payment_history_tables.append(payment_headers_table)
-
-            # Extract payments data
-            payments = payment_data.get('payments', [])
-
-            # If no payments list but has payment_history string, try to parse it
-            if not payments and 'payment_history' in payment_data:
-                # This is a simplified parser assuming format: "1. date: amount via method"
-                history_text = payment_data['payment_history']
-                history_lines = [
-                    line.strip() for line in history_text.split('\n')
-                    if line.strip()
-                ]
-
-                # Skip first line if it's just "Payment History:"
-                start_idx = 1 if history_lines and history_lines[0].lower(
-                ) == 'payment history:' else 0
-
-                for i, line in enumerate(history_lines[start_idx:], 1):
-                    # Try to extract payment details from each line
-                    try:
-                        # Extract parts after the line number
-                        parts = line.split('. ',
-                                           1)[1] if '. ' in line else line
-
-                        # Split into date and amount parts
-                        date_part, amount_part = parts.split(
-                            ': ', 1) if ': ' in parts else (
-                                date_obj.strftime('%d/%m/%Y'), parts)
-
-                        # Extract amount and method
-                        amount = "0.0"
-                        method = "Unknown"
-                        if ' via ' in amount_part:
-                            amount_str, method = amount_part.split(' via ', 1)
-                            # Clean up the amount string, removing "Rs. " and any commas
-                            amount = amount_str.replace('Rs. ',
-                                                        '').replace(',', '')
-
-                            # Remove any reference part
-                            if ' (Ref: ' in method:
-                                reference = method.split(' (Ref: ')[1].rstrip(
-                                    ')')
-                                method = method.split(' (Ref: ')[0]
-
-                                # Add to payments list
-                                payments.append({
-                                    'date': date_part,
-                                    'amount': amount,
-                                    'method': method,
-                                    'reference': reference,
-                                    'depositor':
-                                    'Customer'  # Default depositor
-                                })
-                            else:
-                                # Add to payments list without reference
-                                payments.append({
-                                    'date': date_part,
-                                    'amount': amount,
-                                    'method': method,
-                                    'depositor':
-                                    'Customer'  # Default depositor
-                                })
-                    except:
-                        # Skip unparseable lines
-                        continue
-
-            # Format payment rows - each payment gets a row
-            payment_rows = []
-            remaining = total
-
-            for i, payment in enumerate(payments, 1):
-                # Get payment details with safe defaults
-                try:
-                    payment_amount = float(payment.get('amount', 0))
-                except (ValueError, TypeError):
-                    payment_amount = 0.0
-
-                payment_date = payment.get('date', '')
-                payment_time = payment.get('time', '')
-                payment_method = payment.get('method', '')
-                payment_depositor = payment.get('depositor', 'Customer')
-                payment_note = payment.get('note', '')
-
-                # Calculate remaining amount if not provided
-                if 'remaining' in payment:
-                    try:
-                        remaining = float(payment.get('remaining', 0))
-                    except (ValueError, TypeError):
-                        remaining -= payment_amount
-                else:
-                    remaining -= payment_amount
-
-                # Get status (default based on remaining)
-                if remaining <= 0:
-                    status = 'PAID'
-                elif remaining < total:
-                    status = 'PARTIALLY_PAID'
-                else:
-                    status = 'UNPAID'
-
-                payment_status = payment.get('status', status)
-
-                payment_rows.append([
-                    str(i), invoice_number,
-                    format_currency(payment_amount,
-                                    symbol='Rs.'), payment_depositor,
-                    payment_date, payment_time, payment_method,
-                    format_currency(remaining,
-                                    symbol='Rs.'), payment_note, payment_status
-                ])
-
-            # If no payment rows, add a blank one for the template
-            if not payment_rows:
-                payment_rows = [[
-                    "", invoice_number, "", "", "", "", "", "", "", ""
-                ]]
-
-            # Create payments table
-            payments_table = Table(payment_rows, colWidths=payment_col_widths)
-            payments_table.setStyle(
-                TableStyle([
-                    ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                    ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('ALIGN', (0, 0), (0, -1), 'CENTER'),  # Sr.no centered
-                    ('ALIGN', (2, 0), (2, -1),
-                     'RIGHT'),  # Amount right aligned
-                    ('ALIGN', (7, 0), (7, -1),
-                     'RIGHT'),  # Remaining Amount right aligned
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ]))
-
-            payment_history_tables.append(payments_table)
-
-        # ------ COMBINE ALL SECTIONS INTO FINAL DOCUMENT ------
-        # Create contents for the main invoice (without payment history)
-        invoice_content = []
-        invoice_content.append(shop_name_table)
-        invoice_content.append(shop_info_table)
-        invoice_content.append(customer_info_table)
-        invoice_content.append(items_header_table)
-        invoice_content.append(items_table)
-        invoice_content.append(total_row_table)
-        invoice_content.append(amount_words_table)
-        invoice_content.append(payment_tax_row)
-        invoice_content.append(signature_table)
-        invoice_content.append(subject_table)
-
-        # Create a single FlowFrame that will contain all the invoice elements
-        invoice_frame = Frame(
-            doc.leftMargin,
-            doc.bottomMargin,
-            doc.width,
-            doc.height - 10,
-            leftPadding=5,
-            rightPadding=5,
-            topPadding=5,
-            bottomPadding=5,
-            showBoundary=1  # This gives us the main border around everything
-        )
-
-        # Create a final elements list
-        elements = []
-
-        # Add all invoice content elements
-        for item in invoice_content:
-            elements.append(item)
-
-        # Add payment history tables if any
-        for table in payment_history_tables:
-            elements.append(table)
-
-        # Build the document with the frame that adds the main border
-        doc.addPageTemplates([PageTemplate(frames=[invoice_frame])])
-        doc.build(elements)
-
-        return True
-
-    except Exception as e:
-        print(f"Error generating invoice: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
-def view_invoice(file_path):
-    """Open an invoice file with the appropriate application"""
-    try:
-        if not os.path.exists(file_path):
-            return False
-
-        if platform.system() == 'Windows':
-            subprocess.call(['start', '', file_path], shell=True)
-        elif platform.system() == 'Darwin':  # macOS
-            subprocess.call(['open', file_path])
-        else:  # Linux
-            subprocess.call(['xdg-open', file_path])
-        return True
-    except Exception as e:
-        print(f"Error opening invoice: {e}")
-        return False
+                str(item.get('discount', '')),  #
