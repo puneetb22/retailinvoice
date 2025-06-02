@@ -570,26 +570,26 @@ def generate_invoice(invoice_data, save_path):
                 print(f"DEBUG: Sample sale_items data: {sample_si}")
 
             if invoice_items_count > 0:
-                # Query from invoice_items table
+                # Query from invoice_items table with proper batch number handling
                 query = """
                     SELECT 
                         COALESCE(p.name, 'Unknown Product') as product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         COALESCE(ii.hsn_code, p.hsn_code, '') as hsn_code,
-                        COALESCE(ii.batch_number, '') as batch_number,
-                        COALESCE(
+                        COALESCE(ii.batch_number, b.batch_number, '') as batch_number,
+                        COALESCE(b.expiry_date, 
                             (SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
-                             AND (batch_number = ii.batch_number OR ii.batch_number IS NULL) 
                              ORDER BY expiry_date DESC LIMIT 1), 
                             ''
                         ) as expiry_date,
                         ii.quantity,
-                        COALESCE(p.unit, '') as unit,
+                        COALESCE(p.unit, 'pcs') as unit,
                         ii.price_per_unit as rate,
                         COALESCE(ii.discount_percentage, 0) as discount,
                         ii.total_price as amount
                     FROM invoice_items ii
                     LEFT JOIN products p ON ii.product_id = p.id
+                    LEFT JOIN batches b ON ii.product_id = b.product_id AND ii.batch_number = b.batch_number
                     WHERE ii.invoice_id = ?
                     ORDER BY ii.id
                 """
@@ -599,25 +599,26 @@ def generate_invoice(invoice_data, save_path):
                 print(f"DEBUG: Query returned {len(items)} items from invoice_items")
                 
             elif sale_items_count > 0:
-                # Query from sale_items table
+                # Query from sale_items table with proper batch number handling
                 query = """
                     SELECT 
                         si.product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         COALESCE(si.hsn_code, '') as hsn_code,
-                        '' as batch_number,
-                        COALESCE(
+                        COALESCE(b.batch_number, '') as batch_number,
+                        COALESCE(b.expiry_date, 
                             (SELECT expiry_date FROM batches WHERE product_id = si.product_id 
                              ORDER BY expiry_date DESC LIMIT 1), 
                             ''
                         ) as expiry_date,
                         si.quantity,
-                        COALESCE(p.unit, '') as unit,
+                        COALESCE(p.unit, 'pcs') as unit,
                         si.price as rate,
                         COALESCE(si.discount_percent, 0) as discount,
                         si.total as amount
                     FROM sale_items si
                     LEFT JOIN products p ON si.product_id = p.id
+                    LEFT JOIN batches b ON si.product_id = b.product_id
                     WHERE si.sale_id = ?
                     ORDER BY si.id
                 """
@@ -675,7 +676,7 @@ def generate_invoice(invoice_data, save_path):
 
         # Format items with proper field mapping
         formatted_items = []
-        subtotal = 0.0
+        items_subtotal = 0.0  # Calculate actual subtotal from items
         tax_total = 0.0
         total_qty = 0
 
@@ -698,13 +699,14 @@ def generate_invoice(invoice_data, save_path):
                         expiry_date = expiry_str
                 
                 quantity = float(item[5]) if item[5] is not None else 0
-                unit = str(item[6]) if item[6] else ""
+                unit = str(item[6]) if item[6] else "pcs"
                 price = float(item[7]) if item[7] is not None else 0
                 discount = float(item[8]) if item[8] is not None else 0
-                total = float(item[9]) if item[9] is not None else 0
+                item_total = float(item[9]) if item[9] is not None else 0
 
-                # Add to total quantity
+                # Add to totals
                 total_qty += quantity
+                items_subtotal += item_total  # Use actual item total for subtotal calculation
 
                 # Format quantity and discount for display
                 qty_str = str(int(quantity)) if quantity == int(quantity) else str(quantity)
@@ -723,10 +725,10 @@ def generate_invoice(invoice_data, save_path):
                     'unit': unit,
                     'price': price,
                     'discount': discount_str,
-                    'total': total
+                    'total': item_total
                 })
 
-                print(f"DEBUG: Processed item {i+1}: {name}, Qty: {qty_str}, Price: {price}, Total: {total}")
+                print(f"DEBUG: Processed item {i+1}: {name}, Batch: {batch_no}, Qty: {qty_str}, Price: {price}, Total: {item_total}")
 
             except Exception as e:
                 print(f"Error processing item {i}: {str(e)}")
@@ -738,12 +740,15 @@ def generate_invoice(invoice_data, save_path):
                     'batch_no': "",
                     'expiry_date': "",
                     'quantity': "0",
-                    'unit': "",
+                    'unit': "pcs",
                     'price': 0,
                     'discount': "",
                     'total': 0
                 })
                 continue
+
+        # Use calculated subtotal from items instead of payment data
+        subtotal = items_subtotal
 
 
         items_data = []
@@ -799,10 +804,12 @@ def generate_invoice(invoice_data, save_path):
             ('FONTSIZE', (0, 0), (-1, -1), 8),
         ]))
 
-        # Total row
+        # Total row - use sum of item amounts
         try:
             qty_display = str(int(total_qty)) if total_qty == int(total_qty) else str(total_qty)
-            total_formatted = format_currency(total, symbol='Rs.')
+            # Use items_subtotal (sum of all item amounts) instead of payment total
+            items_total = items_subtotal
+            total_formatted = format_currency(items_total, symbol='Rs.')
         except (ValueError, TypeError):
             qty_display = "0"
             total_formatted = "Rs. 0.00"
@@ -857,7 +864,7 @@ def generate_invoice(invoice_data, save_path):
 
         # Create the tax table header as paragraphs with explicit styling
         tax_table_header = [
-            [taxable_para, cgst_para, sgst_para, total_tax_para],
+            [taxable_para, cgst_para, "", sgst_para, "", total_tax_para],
             ["", rate_para, amount_para, rate_para, amount_para, ""]
         ]
 
@@ -875,14 +882,14 @@ def generate_invoice(invoice_data, save_path):
             ["", "", format_currency(cgst, symbol='Rs.'), "", format_currency(sgst, symbol='Rs.'), format_currency(cgst + sgst, symbol='Rs.')]
         ]
 
-        # Define column widths to match the template exactly
+        # Define column widths to fit properly within page margins
         tax_col_widths = [
-            doc.width*0.25,      # Taxable value
+            doc.width*0.20,      # Taxable value
             doc.width*0.10,      # CGST rate
             doc.width*0.15,      # CGST amount
             doc.width*0.10,      # SGST rate
             doc.width*0.15,      # SGST amount
-            doc.width*0.25       # Total tax
+            doc.width*0.20       # Total tax (reduced to fit)
         ]
 
         # Combine header and data
@@ -915,7 +922,7 @@ def generate_invoice(invoice_data, save_path):
             [Paragraph("Outstanding Amnt.", styles['TableHeaderLeft']), Paragraph(format_currency(outstanding_amount, symbol='Rs.'), styles['RightAligned'])]
         ]
 
-        payment_section_table = Table(payment_section_data, colWidths=[doc.width*0.25*0.6, doc.width*0.25*0.4])
+        payment_section_table = Table(payment_section_data, colWidths=[doc.width*0.20*0.6, doc.width*0.20*0.4])
         payment_section_table.setStyle(TableStyle([
             ('BOX', (0, 0), (-1, -1), 1, colors.black),
             ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),  # Line below Payment Breakdown
@@ -925,12 +932,12 @@ def generate_invoice(invoice_data, save_path):
             ('FONTSIZE', (0, 0), (-1, -1), 8),
         ]))
 
-        # Combine payment and tax sections in a row
+        # Combine payment and tax sections in a row with adjusted widths
         payment_tax_data = [
             [payment_section_table, tax_table]
         ]
 
-        payment_tax_row = Table(payment_tax_data, colWidths=[doc.width*0.25, doc.width*0.75])
+        payment_tax_row = Table(payment_tax_data, colWidths=[doc.width*0.20, doc.width*0.80])
         payment_tax_row.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ]))
