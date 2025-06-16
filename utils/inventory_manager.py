@@ -17,7 +17,8 @@ class InventoryManager:
         """Get all available batches for a product with FEFO ordering"""
         query = """
             SELECT b.id, b.batch_number, b.quantity, b.expiry_date, 
-                   b.cost_price, b.manufacturing_date, p.selling_price
+                   b.cost_price, b.manufacturing_date, 
+                   COALESCE(b.selling_price, p.selling_price) as selling_price
             FROM batches b
             JOIN products p ON b.product_id = p.id
             WHERE b.product_id = ? AND b.quantity > 0
@@ -32,7 +33,9 @@ class InventoryManager:
         """Get detailed information about a specific batch"""
         query = """
             SELECT b.id, b.batch_number, b.quantity, b.expiry_date, 
-                   b.cost_price, b.manufacturing_date, p.selling_price, p.name
+                   b.cost_price, b.manufacturing_date, 
+                   COALESCE(b.selling_price, p.selling_price) as selling_price, 
+                   p.name, b.product_id
             FROM batches b
             JOIN products p ON b.product_id = p.id
             WHERE b.id = ?
@@ -86,7 +89,7 @@ class InventoryManager:
             print(f"Error updating batch quantity: {e}")
             return False
     
-    def find_or_create_batch(self, product_id, batch_number, expiry_date, cost_price, manufacturing_date=None):
+    def find_or_create_batch(self, product_id, batch_number, expiry_date, cost_price, manufacturing_date=None, selling_price=None):
         """Find existing batch or create new one"""
         # Try to find existing batch with same criteria
         query = """
@@ -110,6 +113,11 @@ class InventoryManager:
                 "manufacturing_date": manufacturing_date,
                 "purchase_date": datetime.datetime.now().strftime("%Y-%m-%d")
             }
+            
+            # Add selling price if provided
+            if selling_price is not None:
+                batch_data["selling_price"] = selling_price
+            
             batch_id = self.db.insert("batches", batch_data)
             return batch_id, 0  # new batch_id, 0 quantity
     

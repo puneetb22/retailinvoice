@@ -863,7 +863,7 @@ class SalesFrame(tk.Frame):
         db = self.controller.db
         product_details = db.fetchone("""
             SELECT p.hsn_code, p.tax_percentage,
-                   GROUP_CONCAT(b.id || '|' || b.batch_number || '|' || b.quantity || '|' || b.expiry_date) as batch_info
+                   GROUP_CONCAT(b.id || '|' || b.batch_number || '|' || b.quantity || '|' || b.expiry_date || '|' || COALESCE(b.selling_price, p.selling_price)) as batch_info
             FROM products p
             LEFT JOIN batches b ON p.id = b.product_id 
             AND (b.expiry_date > date('now') OR b.expiry_date IS NULL)
@@ -887,12 +887,13 @@ class SalesFrame(tk.Frame):
         if batch_info:
             for batch in batch_info.split(','):
                 try:
-                    batch_id, batch_number, quantity, expiry = batch.split('|')
+                    batch_id, batch_number, quantity, expiry, selling_price = batch.split('|')
                     batches.append({
                         'id': int(batch_id),
                         'number': batch_number,
                         'quantity': int(quantity),
-                        'expiry': expiry
+                        'expiry': expiry,
+                        'selling_price': float(selling_price) if selling_price else product_price
                     })
                 except (ValueError, IndexError):
                     continue
@@ -954,6 +955,9 @@ class SalesFrame(tk.Frame):
             ])
             return
         
+        # Price variable that will be updated based on batch selection
+        current_price = [product_price]  # Use list for reference
+        
         # Batch selection (if multiple batches exist)
         selected_batch = [None]  # Use list to store selected batch for access in nested functions
         if len(batches) > 1:
@@ -966,34 +970,44 @@ class SalesFrame(tk.Frame):
                    width=12,
                    anchor="w").grid(row=0, column=0, sticky="w")
             
-            # Create batch options with expiry dates
+            # Create batch options with expiry dates and prices
             batch_options = []
             for batch in batches:
                 expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else ""
-                batch_options.append(f"{batch['number']}{expiry_str} - {batch['quantity']} units")
+                price_str = f" - ₹{batch['selling_price']:.2f}"
+                batch_options.append(f"{batch['number']}{expiry_str}{price_str} - {batch['quantity']} units")
             
             batch_var = tk.StringVar(value=batch_options[0] if batch_options else "")
             batch_combo = ttk.Combobox(batch_frame,
                                      textvariable=batch_var,
                                      values=batch_options,
                                      font=FONTS["regular"],
-                                     width=25,
+                                     width=35,
                                      state="readonly")
             batch_combo.grid(row=0, column=1, sticky="w")
             
-            # Store selected batch info
+            # Store selected batch info and update price
             def on_batch_select(event):
                 selected = batch_var.get()
                 for batch in batches:
                     expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else ""
-                    if selected.startswith(f"{batch['number']}{expiry_str}"):
+                    price_str = f" - ₹{batch['selling_price']:.2f}"
+                    if selected.startswith(f"{batch['number']}{expiry_str}{price_str}"):
                         selected_batch[0] = batch
+                        current_price[0] = batch['selling_price']
+                        # Update the price display
+                        stock_label.config(text=f"Price: ₹{batch['selling_price']:.2f} | Available: {batch['quantity']}")
                         break
             
             batch_combo.bind("<<ComboboxSelected>>", on_batch_select)
             # Set initial batch
             if batch_options:
                 selected_batch[0] = batches[0]
+                current_price[0] = batches[0]['selling_price']
+        elif len(batches) == 1:
+            # Only one batch, auto-select it
+            selected_batch[0] = batches[0]
+            current_price[0] = batches[0]['selling_price']
         
         # Quantity
         qty_frame = tk.Frame(content_frame)
@@ -1103,9 +1117,12 @@ class SalesFrame(tk.Frame):
                                          "Discount must be between 0 and 100!")
                     return
                 
+                # Use batch-specific price if available
+                item_price = current_price[0] if selected_batch[0] else product_price
+                
                 # Calculate total - use Decimal for consistent math with money values
                 discount_factor = Decimal('1') - (Decimal(str(discount)) / Decimal('100'))
-                total = Decimal(str(product_price)) * Decimal(str(quantity)) * discount_factor
+                total = Decimal(str(item_price)) * Decimal(str(quantity)) * discount_factor
                 
                 # Check if product already exists in cart
                 existing_item = None
@@ -1117,9 +1134,10 @@ class SalesFrame(tk.Frame):
                 if existing_item:
                     # Update existing item quantity and total
                     new_quantity = existing_item["quantity"] + quantity
-                    new_total = Decimal(str(product_price)) * Decimal(str(new_quantity)) * discount_factor
+                    new_total = Decimal(str(item_price)) * Decimal(str(new_quantity)) * discount_factor
                     existing_item["quantity"] = new_quantity
                     existing_item["total"] = new_total
+                    existing_item["price"] = item_price  # Update price to batch price
                     print(f"DEBUG: Updated existing cart item. New quantity: {new_quantity}")
                     
                     # Update reserved inventory
@@ -1133,7 +1151,7 @@ class SalesFrame(tk.Frame):
                         "id": self.next_item_id,
                         "product_id": product_id,
                         "name": product_name,
-                        "price": product_price,
+                        "price": item_price,  # Use batch-specific price
                         "quantity": quantity,
                         "discount": discount,
                         "total": total,

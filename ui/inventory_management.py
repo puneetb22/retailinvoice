@@ -3548,4 +3548,3 @@ class InventoryManagementFrame(tk.Frame):
         query = "SELECT code FROM hsn_codes ORDER BY code"
         result = self.controller.db.fetchall(query)
         return [code[0] for code in result] if result else []
-    

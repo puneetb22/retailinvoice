@@ -14,7 +14,7 @@ DB_SCHEMA = {
             value TEXT
         )
     """,
-    
+
     "categories": """
         CREATE TABLE categories (
             id INTEGER PRIMARY KEY,
@@ -23,7 +23,7 @@ DB_SCHEMA = {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
-    
+
     "vendors": """
         CREATE TABLE vendors (
             id INTEGER PRIMARY KEY,
@@ -36,7 +36,7 @@ DB_SCHEMA = {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
-    
+
     "hsn_codes": """
         CREATE TABLE hsn_codes (
             id INTEGER PRIMARY KEY,
@@ -46,7 +46,7 @@ DB_SCHEMA = {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
-    
+
     "products": """
         CREATE TABLE products (
             id INTEGER PRIMARY KEY,
@@ -65,7 +65,7 @@ DB_SCHEMA = {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
-    
+
     "inventory": """
         CREATE TABLE inventory (
             id INTEGER PRIMARY KEY,
@@ -78,7 +78,7 @@ DB_SCHEMA = {
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         )
     """,
-    
+
     "customers": """
         CREATE TABLE customers (
             id INTEGER PRIMARY KEY,
@@ -93,7 +93,7 @@ DB_SCHEMA = {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
-    
+
     "invoices": """
         CREATE TABLE invoices (
             id INTEGER PRIMARY KEY,
@@ -115,7 +115,7 @@ DB_SCHEMA = {
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         )
     """,
-    
+
     "invoice_items": """
         CREATE TABLE invoice_items (
             id INTEGER PRIMARY KEY,
@@ -131,7 +131,7 @@ DB_SCHEMA = {
             FOREIGN KEY (product_id) REFERENCES products(id)
         )
     """,
-    
+
     "expenses": """
         CREATE TABLE expenses (
             id INTEGER PRIMARY KEY,
@@ -142,7 +142,7 @@ DB_SCHEMA = {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
-    
+
     "supplier_transactions": """
         CREATE TABLE supplier_transactions (
             id INTEGER PRIMARY KEY,
@@ -157,7 +157,7 @@ DB_SCHEMA = {
             FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
         )
     """,
-    
+
     "inventory_transactions": """
         CREATE TABLE inventory_transactions (
             id INTEGER PRIMARY KEY,
@@ -171,7 +171,7 @@ DB_SCHEMA = {
             FOREIGN KEY (product_id) REFERENCES products(id)
         )
     """,
-    
+
     "batches": """
         CREATE TABLE batches (
             id INTEGER PRIMARY KEY,
@@ -182,11 +182,12 @@ DB_SCHEMA = {
             expiry_date DATE,
             purchase_date DATE DEFAULT CURRENT_TIMESTAMP,
             cost_price REAL NOT NULL DEFAULT 0,
+            selling_price REAL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         )
     """,
-    
+
     "inventory_movements": """
         CREATE TABLE inventory_movements (
             id INTEGER PRIMARY KEY,
@@ -200,7 +201,7 @@ DB_SCHEMA = {
             FOREIGN KEY (batch_id) REFERENCES batches(id)
         )
     """,
-    
+
     "sales": """
         CREATE TABLE sales (
             id INTEGER PRIMARY KEY,
@@ -219,7 +220,7 @@ DB_SCHEMA = {
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         )
     """,
-    
+
     "sale_items": """
         CREATE TABLE sale_items (
             id INTEGER PRIMARY KEY,
@@ -237,7 +238,7 @@ DB_SCHEMA = {
             FOREIGN KEY (product_id) REFERENCES products(id)
         )
     """,
-    
+
     "payment_splits": """
         CREATE TABLE payment_splits (
             id INTEGER PRIMARY KEY,
@@ -248,7 +249,7 @@ DB_SCHEMA = {
             FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
         )
     """,
-    
+
     "customer_transactions": """
         CREATE TABLE customer_transactions (
             id INTEGER PRIMARY KEY,
@@ -261,7 +262,7 @@ DB_SCHEMA = {
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         )
     """,
-    
+
     "customer_payments": """
         CREATE TABLE customer_payments (
             id INTEGER PRIMARY KEY, 
@@ -277,7 +278,7 @@ DB_SCHEMA = {
             FOREIGN KEY (invoice_id) REFERENCES invoices(id)
         )
     """,
-    
+
     "stock_log": """
         CREATE TABLE stock_log (
             id INTEGER PRIMARY KEY,
@@ -318,15 +319,15 @@ INITIAL_DATA = {
         {"key": "product_categories", "value": "Fertilizers,Pesticides,Seeds,Equipment,Other"}, 
         {"key": "vendors", "value": "Mahindra Agri,IFFCO,Rallis India,UPL Limited,Syngenta,Bayer CropScience,Godrej Agrovet"}
     ],
-    
+
     "categories": [
         {"name": "Fertilizers", "description": "Chemical and organic fertilizers for crops"},
         {"name": "Pesticides", "description": "Insecticides, fungicides, and other crop protection chemicals"},
         {"name": "Seeds", "description": "Crop seeds, vegetable seeds, and plant seeds"},
-        {"name": "Equipment", "description": "Farming tools and equipment"},
+        {"name": "Equipment", description": "Farming tools and equipment"},
         {"name": "Other", "description": "Miscellaneous agricultural products"}
     ],
-    
+
     "vendors": [
         {"name": "Mahindra Agri", "contact_person": "Rajesh Kumar", "phone": "9898989898", "email": "rajesh@mahindraagri.com", "address": "Mumbai, Maharashtra", "gstin": "27AAECS1234F1Z5"},
         {"name": "IFFCO", "contact_person": "Sanjay Verma", "phone": "9787878787", "email": "sanjay@iffco.in", "address": "Delhi, India", "gstin": "07AAACI5432A1Z3"},
@@ -336,7 +337,7 @@ INITIAL_DATA = {
         {"name": "Bayer CropScience", "contact_person": "Vikram Desai", "phone": "9343434343", "email": "vikram@bayer.com", "address": "Hyderabad, Telangana", "gstin": "36AAACB0987E1Z2"},
         {"name": "Godrej Agrovet", "contact_person": "Meera Reddy", "phone": "9232323232", "email": "meera@godrej.com", "address": "Mumbai, Maharashtra", "gstin": "27AAACG2109F1Z0"}
     ],
-    
+
     "hsn_codes": [
         {"code": "0701-0714", "description": "Edible vegetables and certain roots and tubers (e.g., potatoes, onions, beans)", "tax_rate": 5.0},
         {"code": "0801-0814", "description": "Edible fruits and nuts (e.g., mangoes, bananas, citrus fruits, cashew nuts)", "tax_rate": 5.0},
@@ -354,7 +355,7 @@ INITIAL_DATA = {
         {"code": "84322100", "description": "Disc harrows", "tax_rate": 18.0},
         {"code": "8436", "description": "Other agricultural, horticultural, forestry, poultry-keeping or bee-keeping machinery", "tax_rate": 18.0}
     ],
-    
+
     "customers": [
         {
             "name": "Walk-in Customer",
@@ -384,7 +385,7 @@ INITIAL_DATA = {
             "credit_limit": 2000
         }
     ],
-    
+
     "products": [
         {
             "product_code": "FERT001",
@@ -431,7 +432,7 @@ INITIAL_DATA = {
             "tax_percentage": 18
         }
     ],
-    
+
     "batches": [
         {
             "product_id": 1,
@@ -440,7 +441,8 @@ INITIAL_DATA = {
             "manufacturing_date": (datetime.datetime.now() - datetime.timedelta(days=90)).strftime('%Y-%m-%d'),
             "expiry_date": (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y-%m-%d'),
             "purchase_date": (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'),
-            "cost_price": 450
+            "cost_price": 450,
+            "selling_price": 500
         },
         {
             "product_id": 2,
@@ -449,7 +451,8 @@ INITIAL_DATA = {
             "manufacturing_date": (datetime.datetime.now() - datetime.timedelta(days=60)).strftime('%Y-%m-%d'),
             "expiry_date": (datetime.datetime.now() + datetime.timedelta(days=730)).strftime('%Y-%m-%d'),
             "purchase_date": (datetime.datetime.now() - datetime.timedelta(days=20)).strftime('%Y-%m-%d'),
-            "cost_price": 320
+            "cost_price": 320,
+            "selling_price": 380
         },
         {
             "product_id": 3,
@@ -458,7 +461,8 @@ INITIAL_DATA = {
             "manufacturing_date": (datetime.datetime.now() - datetime.timedelta(days=120)).strftime('%Y-%m-%d'),
             "expiry_date": (datetime.datetime.now() + datetime.timedelta(days=365*2)).strftime('%Y-%m-%d'),
             "purchase_date": (datetime.datetime.now() - datetime.timedelta(days=15)).strftime('%Y-%m-%d'),
-            "cost_price": 850
+            "cost_price": 850,
+            "selling_price": 950
         },
         {
             "product_id": 4,
@@ -467,7 +471,61 @@ INITIAL_DATA = {
             "manufacturing_date": (datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
             "expiry_date": (datetime.datetime.now() + datetime.timedelta(days=365*5)).strftime('%Y-%m-%d'),
             "purchase_date": (datetime.datetime.now() - datetime.timedelta(days=10)).strftime('%Y-%m-%d'),
-            "cost_price": 750
+            "cost_price": 750,
+            "selling_price": 900
         }
     ]
 }
+
+def update_schema(db):
+    """Update database schema to latest version"""
+    print("Creating stock_log table...")
+
+    # Check if stock_log table exists
+    result = db.fetchone("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='stock_log'
+    """)
+
+    if not result:
+        # Create stock_log table
+        db.execute("""
+            CREATE TABLE stock_log (
+                id INTEGER PRIMARY KEY,
+                batch_id INTEGER,
+                product_id INTEGER,
+                transaction_type TEXT NOT NULL,
+                quantity_change INTEGER NOT NULL,
+                quantity_before INTEGER,
+                quantity_after INTEGER,
+                reference_type TEXT,
+                reference_id INTEGER,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (batch_id) REFERENCES batches(id),
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        """)
+        db.commit()
+
+    # Check if selling_price column exists in batches table
+    try:
+        db.execute("SELECT selling_price FROM batches LIMIT 1")
+    except:
+        # Column doesn't exist, add it
+        print("Adding selling_price column to batches table...")
+        db.execute("ALTER TABLE batches ADD COLUMN selling_price REAL DEFAULT 0")
+
+        # Copy selling price from products to existing batches
+        db.execute("""
+            UPDATE batches 
+            SET selling_price = (
+                SELECT selling_price 
+                FROM products 
+                WHERE products.id = batches.product_id
+            )
+            WHERE selling_price = 0 OR selling_price IS NULL
+        """)
+        db.commit()
+
+    print("Schema update completed successfully")
