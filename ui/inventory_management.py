@@ -1662,13 +1662,13 @@ class InventoryManagementFrame(tk.Frame):
         self.hsn_mode = "add"  # 'add' or 'edit'
 
     def setup_stock_entry_tab(self):
-        """Setup the stock entry tab for adding new stock"""
+        """Setup the stock entry tab for adding new stock with proper batch management"""
         # Create header
         header_frame = tk.Frame(self.stock_entry_tab, bg=COLORS["primary"])
         header_frame.pack(fill=tk.X, padx=10, pady=5)
         
         header_label = tk.Label(header_frame, 
-                              text="Add New Stock Entry",
+                              text="Stock Entry - Batch Management",
                               font=FONTS["heading"],
                               bg=COLORS["primary"],
                               fg=COLORS["text_white"])
@@ -1682,133 +1682,199 @@ class InventoryManagementFrame(tk.Frame):
         form_frame = tk.Frame(content_frame, bg=COLORS["bg_primary"])
         form_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
-        # Product selection
+        # Product selection (only product names)
         product_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
         product_frame.pack(fill=tk.X, pady=5)
         
         product_label = tk.Label(product_frame, 
                                text="Select Product:",
-                               font=FONTS["regular"],
+                               font=FONTS["regular_bold"],
                                bg=COLORS["bg_primary"],
                                fg=COLORS["text_primary"])
-        product_label.pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Create a frame for the combobox and refresh button
-        dropdown_frame = tk.Frame(product_frame, bg=COLORS["bg_primary"])
-        dropdown_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        product_label.pack(anchor="w")
         
         self.stock_product_var = tk.StringVar()
-        self.stock_product_dropdown = ttk.Combobox(dropdown_frame, 
+        self.stock_product_dropdown = ttk.Combobox(product_frame, 
                                                  textvariable=self.stock_product_var,
                                                  font=FONTS["regular"],
-                                                 width=40,
+                                                 width=50,
                                                  state="readonly")
-        self.stock_product_dropdown.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        # Add refresh button
-        refresh_btn = tk.Button(dropdown_frame,
-                              text="↻",
-                              font=FONTS["regular"],
-                              bg=COLORS["secondary"],
-                              fg=COLORS["text_white"],
-                              width=3,
-                              cursor="hand2",
-                              command=self.load_products_for_stock_entry)
-        refresh_btn.pack(side=tk.LEFT, padx=(5, 0))
-        
-        # Bind events - remove the problematic FocusIn binding that was causing the dropdown to get stuck
+        self.stock_product_dropdown.pack(fill=tk.X, pady=5)
         self.stock_product_dropdown.bind("<<ComboboxSelected>>", self.on_stock_product_select)
         
-        # Batch number field
-        batch_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        batch_frame.pack(fill=tk.X, pady=5)
+        # Existing batches info frame
+        self.existing_batches_frame = tk.Frame(form_frame, bg=COLORS["bg_secondary"], relief=tk.RIDGE, bd=1)
+        self.existing_batches_frame.pack(fill=tk.X, pady=10)
         
-        batch_label = tk.Label(batch_frame, 
-                             text="Batch Number:",
-                             font=FONTS["regular"],
-                             bg=COLORS["bg_primary"],
-                             fg=COLORS["text_primary"])
-        batch_label.pack(side=tk.LEFT, padx=(0, 10))
+        existing_label = tk.Label(self.existing_batches_frame, 
+                                text="Existing Batches for Selected Product:",
+                                font=FONTS["regular_bold"],
+                                bg=COLORS["bg_secondary"],
+                                fg=COLORS["text_primary"])
+        existing_label.pack(anchor="w", padx=5, pady=5)
+        
+        # Batch selection section
+        batch_selection_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        batch_selection_frame.pack(fill=tk.X, pady=10)
+        
+        batch_mode_label = tk.Label(batch_selection_frame, 
+                                  text="Batch Selection Mode:",
+                                  font=FONTS["regular_bold"],
+                                  bg=COLORS["bg_primary"],
+                                  fg=COLORS["text_primary"])
+        batch_mode_label.pack(anchor="w")
+        
+        # Radio buttons for batch mode
+        self.batch_mode_var = tk.StringVar(value="existing")
+        
+        existing_radio = tk.Radiobutton(batch_selection_frame,
+                                      text="Add to Existing Batch",
+                                      variable=self.batch_mode_var,
+                                      value="existing",
+                                      font=FONTS["regular"],
+                                      bg=COLORS["bg_primary"],
+                                      fg=COLORS["text_primary"],
+                                      selectcolor=COLORS["bg_primary"],
+                                      command=self.on_batch_mode_change)
+        existing_radio.pack(anchor="w", padx=20, pady=2)
+        
+        new_radio = tk.Radiobutton(batch_selection_frame,
+                                 text="Create New Batch",
+                                 variable=self.batch_mode_var,
+                                 value="new",
+                                 font=FONTS["regular"],
+                                 bg=COLORS["bg_primary"],
+                                 fg=COLORS["text_primary"],
+                                 selectcolor=COLORS["bg_primary"],
+                                 command=self.on_batch_mode_change)
+        new_radio.pack(anchor="w", padx=20, pady=2)
+        
+        # Existing batch selection
+        self.existing_batch_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        self.existing_batch_frame.pack(fill=tk.X, pady=5)
+        
+        existing_batch_label = tk.Label(self.existing_batch_frame, 
+                                      text="Select Existing Batch:",
+                                      font=FONTS["regular"],
+                                      bg=COLORS["bg_primary"],
+                                      fg=COLORS["text_primary"])
+        existing_batch_label.pack(anchor="w")
+        
+        self.existing_batch_var = tk.StringVar()
+        self.existing_batch_dropdown = ttk.Combobox(self.existing_batch_frame, 
+                                                   textvariable=self.existing_batch_var,
+                                                   font=FONTS["regular"],
+                                                   width=50,
+                                                   state="readonly")
+        self.existing_batch_dropdown.pack(fill=tk.X, pady=2)
+        self.existing_batch_dropdown.bind("<<ComboboxSelected>>", self.on_existing_batch_select)
+        
+        # New batch details frame
+        self.new_batch_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        self.new_batch_frame.pack(fill=tk.X, pady=5)
+        
+        # Batch number field for new batch
+        batch_number_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
+        batch_number_frame.pack(fill=tk.X, pady=2)
+        
+        batch_number_label = tk.Label(batch_number_frame, 
+                                    text="New Batch Number:",
+                                    font=FONTS["regular"],
+                                    bg=COLORS["bg_primary"],
+                                    fg=COLORS["text_primary"])
+        batch_number_label.pack(anchor="w")
         
         self.batch_number_var = tk.StringVar()
-        batch_entry = tk.Entry(batch_frame, 
-                             textvariable=self.batch_number_var,
-                             font=FONTS["regular"],
-                             width=30)
-        batch_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        # Quantity field
-        quantity_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        quantity_frame.pack(fill=tk.X, pady=5)
-        
-        quantity_label = tk.Label(quantity_frame, 
-                                text="Quantity:",
-                                font=FONTS["regular"],
-                                bg=COLORS["bg_primary"],
-                                fg=COLORS["text_primary"])
-        quantity_label.pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.quantity_var = tk.StringVar()
-        quantity_entry = tk.Entry(quantity_frame, 
-                                textvariable=self.quantity_var,
-                                font=FONTS["regular"],
-                                width=30)
-        quantity_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        batch_number_entry = tk.Entry(batch_number_frame, 
+                                    textvariable=self.batch_number_var,
+                                    font=FONTS["regular"])
+        batch_number_entry.pack(fill=tk.X, pady=2)
         
         # Manufacturing date field
-        mfg_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        mfg_frame.pack(fill=tk.X, pady=5)
+        mfg_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
+        mfg_frame.pack(fill=tk.X, pady=2)
         
         mfg_label = tk.Label(mfg_frame, 
                            text="Manufacturing Date (YYYY-MM-DD):",
                            font=FONTS["regular"],
                            bg=COLORS["bg_primary"],
                            fg=COLORS["text_primary"])
-        mfg_label.pack(side=tk.LEFT, padx=(0, 10))
+        mfg_label.pack(anchor="w")
         
         self.mfg_date_var = tk.StringVar()
         self.mfg_date_var.set(datetime.datetime.now().strftime("%Y-%m-%d"))
         mfg_entry = tk.Entry(mfg_frame, 
                            textvariable=self.mfg_date_var,
-                           font=FONTS["regular"],
-                           width=30)
-        mfg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                           font=FONTS["regular"])
+        mfg_entry.pack(fill=tk.X, pady=2)
         
         # Expiry date field
-        expiry_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        expiry_frame.pack(fill=tk.X, pady=5)
+        expiry_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
+        expiry_frame.pack(fill=tk.X, pady=2)
         
         expiry_label = tk.Label(expiry_frame, 
                               text="Expiry Date (YYYY-MM-DD):",
                               font=FONTS["regular"],
                               bg=COLORS["bg_primary"],
                               fg=COLORS["text_primary"])
-        expiry_label.pack(side=tk.LEFT, padx=(0, 10))
+        expiry_label.pack(anchor="w")
         
         self.expiry_date_var = tk.StringVar()
         expiry_entry = tk.Entry(expiry_frame, 
                               textvariable=self.expiry_date_var,
-                              font=FONTS["regular"],
-                              width=30)
-        expiry_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                              font=FONTS["regular"])
+        expiry_entry.pack(fill=tk.X, pady=2)
         
-        # Purchase price field
-        price_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        price_frame.pack(fill=tk.X, pady=5)
+        # Wholesale price field
+        wholesale_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
+        wholesale_frame.pack(fill=tk.X, pady=2)
         
-        price_label = tk.Label(price_frame, 
-                             text="Purchase Price:",
-                             font=FONTS["regular"],
-                             bg=COLORS["bg_primary"],
-                             fg=COLORS["text_primary"])
-        price_label.pack(side=tk.LEFT, padx=(0, 10))
+        wholesale_label = tk.Label(wholesale_frame, 
+                                 text="Wholesale Price:",
+                                 font=FONTS["regular"],
+                                 bg=COLORS["bg_primary"],
+                                 fg=COLORS["text_primary"])
+        wholesale_label.pack(anchor="w")
         
-        self.purchase_price_var = tk.StringVar()
-        price_entry = tk.Entry(price_frame, 
-                             textvariable=self.purchase_price_var,
-                             font=FONTS["regular"],
-                             width=30)
-        price_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.wholesale_price_var = tk.StringVar()
+        wholesale_entry = tk.Entry(wholesale_frame, 
+                                 textvariable=self.wholesale_price_var,
+                                 font=FONTS["regular"])
+        wholesale_entry.pack(fill=tk.X, pady=2)
+        
+        # Selling price field
+        selling_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
+        selling_frame.pack(fill=tk.X, pady=2)
+        
+        selling_label = tk.Label(selling_frame, 
+                               text="Selling Price:",
+                               font=FONTS["regular"],
+                               bg=COLORS["bg_primary"],
+                               fg=COLORS["text_primary"])
+        selling_label.pack(anchor="w")
+        
+        self.selling_price_var = tk.StringVar()
+        selling_entry = tk.Entry(selling_frame, 
+                               textvariable=self.selling_price_var,
+                               font=FONTS["regular"])
+        selling_entry.pack(fill=tk.X, pady=2)
+        
+        # Quantity field (common for both modes)
+        quantity_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        quantity_frame.pack(fill=tk.X, pady=10)
+        
+        quantity_label = tk.Label(quantity_frame, 
+                                text="Quantity to Add:",
+                                font=FONTS["regular_bold"],
+                                bg=COLORS["bg_primary"],
+                                fg=COLORS["text_primary"])
+        quantity_label.pack(anchor="w")
+        
+        self.quantity_var = tk.StringVar()
+        quantity_entry = tk.Entry(quantity_frame, 
+                                textvariable=self.quantity_var,
+                                font=FONTS["regular"])
+        quantity_entry.pack(fill=tk.X, pady=2)
         
         # Buttons frame
         button_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
@@ -1817,7 +1883,7 @@ class InventoryManagementFrame(tk.Frame):
         # Save button
         save_btn = tk.Button(button_frame,
                            text="Save Stock Entry",
-                           font=FONTS["regular"],
+                           font=FONTS["regular_bold"],
                            bg=COLORS["primary"],
                            fg=COLORS["text_white"],
                            padx=20,
@@ -1838,12 +1904,6 @@ class InventoryManagementFrame(tk.Frame):
                             command=self.clear_stock_entry_form)
         clear_btn.pack(side=tk.LEFT)
         
-        # Initialize stock_product_ids dictionary
-        self.stock_product_ids = {}
-        
-        # Load products initially
-        self.load_products_for_stock_entry()
-
         # Right side - Recent entries
         entries_frame = tk.Frame(content_frame, bg=COLORS["bg_primary"], width=600)
         entries_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
@@ -1866,7 +1926,7 @@ class InventoryManagementFrame(tk.Frame):
 
         # Create treeview and assign to self.stock_entries_tree
         self.stock_entries_tree = ttk.Treeview(tree_frame, 
-                                             columns=("Date", "Product", "Batch", "Qty", "MFG Date", "Expiry", "Price"),
+                                             columns=("Date", "Product", "Batch", "Qty", "MFG Date", "Expiry", "W.Price", "S.Price"),
                                              show="headings",
                                              yscrollcommand=scrollbar.set)
 
@@ -1880,99 +1940,199 @@ class InventoryManagementFrame(tk.Frame):
         self.stock_entries_tree.heading("Qty", text="Quantity")
         self.stock_entries_tree.heading("MFG Date", text="MFG Date")
         self.stock_entries_tree.heading("Expiry", text="Expiry Date")
-        self.stock_entries_tree.heading("Price", text="Purchase Price")
+        self.stock_entries_tree.heading("W.Price", text="Wholesale Price")
+        self.stock_entries_tree.heading("S.Price", text="Selling Price")
 
         # Set column widths
         self.stock_entries_tree.column("Date", width=100)
-        self.stock_entries_tree.column("Product", width=200)
+        self.stock_entries_tree.column("Product", width=150)
         self.stock_entries_tree.column("Batch", width=100)
-        self.stock_entries_tree.column("Qty", width=80)
-        self.stock_entries_tree.column("MFG Date", width=100)
-        self.stock_entries_tree.column("Expiry", width=100)
-        self.stock_entries_tree.column("Price", width=100)
+        self.stock_entries_tree.column("Qty", width=60)
+        self.stock_entries_tree.column("MFG Date", width=80)
+        self.stock_entries_tree.column("Expiry", width=80)
+        self.stock_entries_tree.column("W.Price", width=80)
+        self.stock_entries_tree.column("S.Price", width=80)
 
         self.stock_entries_tree.pack(fill=tk.BOTH, expand=True)
 
+        # Initialize variables
+        self.stock_product_ids = {}
+        self.existing_batches_data = {}
+        
         # Load initial data
-        self.load_stock_entries()
         self.load_products_for_stock_entry()
-        # ... rest of the existing setup code ...
+        self.load_stock_entries()
+        
+        # Set initial mode
+        self.on_batch_mode_change()
 
     def load_products_for_stock_entry(self):
-        """Load products into the stock entry dropdown"""
+        """Load products into the stock entry dropdown - only product names"""
         try:
             # Get products from database using proper query
             query = """
-                SELECT id, product_code, name, wholesale_price 
+                SELECT id, name, wholesale_price, selling_price
                 FROM products 
                 ORDER BY name
             """
-            # Use fetchall directly from the database wrapper
             products = self.controller.db.fetchall(query)
             
             if not products:
-                # Only show warning if explicitly loading products (not during initial tab load)
-                if hasattr(self, '_is_initial_load') and not self._is_initial_load:
-                    messagebox.showwarning("Warning", "No products found. Please add products first.")
-                print("No products found in database")  # Log instead of showing message
+                print("No products found in database")
                 return
             
-            # Format for display: "Product Name (Code) - ₹Price"
-            self.stock_product_dropdown['values'] = [
-                f"{p[2]} ({p[1]}) - ₹{p[3]:.2f}" for p in products
-            ]
+            # Format for display: Just product names
+            product_names = [p[1] for p in products]
+            self.stock_product_dropdown['values'] = product_names
             
-            # Store product IDs and details for reference
+            # Store product details for reference
             self.stock_product_ids = {
-                f"{p[2]} ({p[1]}) - ₹{p[3]:.2f}": {
+                p[1]: {
                     'id': p[0],
-                    'name': p[2],
-                    'code': p[1],
-                    'wholesale_price': p[3]
+                    'name': p[1],
+                    'wholesale_price': p[2],
+                    'selling_price': p[3]
                 } for p in products
             }
             
-            # Set default value to first product if dropdown is empty
-            if not self.stock_product_var.get() and self.stock_product_dropdown['values']:
-                self.stock_product_var.set(self.stock_product_dropdown['values'][0])
-                self.on_stock_product_select()
-            
         except Exception as e:
-            # Log error instead of showing message box during initial load
-            print(f"Error loading products: {str(e)}")  # Log to console
-            if hasattr(self, '_is_initial_load') and not self._is_initial_load:
-                messagebox.showerror("Error", f"Failed to load products: {str(e)}")
+            print(f"Error loading products: {str(e)}")
 
     def on_stock_product_select(self, event=None):
         """Handle product selection in stock entry form"""
         selected = self.stock_product_var.get()
-        if not selected or not hasattr(self, 'stock_product_ids') or selected not in self.stock_product_ids:
+        if not selected or selected not in self.stock_product_ids:
             return
             
         try:
             product_details = self.stock_product_ids[selected]
+            product_id = product_details['id']
             
-            # Set default purchase price to wholesale price
-            if not self.purchase_price_var.get():
-                self.purchase_price_var.set(f"{product_details['wholesale_price']:.2f}")
+            # Load existing batches for this product
+            self.load_existing_batches(product_id)
             
-            # Generate a default batch number if not set
+            # Set default prices for new batch
+            self.wholesale_price_var.set(f"{product_details['wholesale_price']:.2f}")
+            self.selling_price_var.set(f"{product_details['selling_price']:.2f}")
+            
+            # Generate a default batch number for new batch
             if not self.batch_number_var.get():
-                # Format: CODE-YYYYMMDD-XXX
                 date_str = datetime.datetime.now().strftime("%Y%m%d")
                 random_suffix = random.randint(100, 999)
-                self.batch_number_var.set(f"{product_details['code']}-{date_str}-{random_suffix}")
+                # Use product name abbreviation for batch code
+                name_abbrev = ''.join([c for c in selected.upper() if c.isalpha()])[:4]
+                self.batch_number_var.set(f"{name_abbrev}-{date_str}-{random_suffix}")
             
         except Exception as e:
-            print(f"Error handling product selection: {str(e)}")  # Log error instead of showing dialog
+            print(f"Error handling product selection: {str(e)}")
+
+    def load_existing_batches(self, product_id):
+        """Load existing batches for the selected product"""
+        try:
+            # Clear previous batches display
+            for widget in self.existing_batches_frame.winfo_children():
+                if isinstance(widget, tk.Label) and widget.cget('text') != "Existing Batches for Selected Product:":
+                    widget.destroy()
+            
+            # Get existing batches
+            query = """
+                SELECT id, batch_number, quantity, manufacturing_date, expiry_date, 
+                       cost_price, selling_price
+                FROM batches 
+                WHERE product_id = ? AND quantity > 0
+                ORDER BY expiry_date ASC, manufacturing_date ASC
+            """
+            batches = self.controller.db.fetchall(query, (product_id,))
+            
+            self.existing_batches_data = {}
+            batch_options = []
+            
+            if batches:
+                for batch in batches:
+                    batch_id, batch_number, quantity, mfg_date, exp_date, cost_price, selling_price = batch
+                    
+                    # Format display string
+                    exp_str = f" (Exp: {exp_date})" if exp_date else " (No Expiry)"
+                    display_str = f"{batch_number}{exp_str} - Qty: {quantity} - ₹{selling_price:.2f}"
+                    batch_options.append(display_str)
+                    
+                    # Store batch data
+                    self.existing_batches_data[display_str] = {
+                        'id': batch_id,
+                        'batch_number': batch_number,
+                        'quantity': quantity,
+                        'manufacturing_date': mfg_date,
+                        'expiry_date': exp_date,
+                        'cost_price': cost_price,
+                        'selling_price': selling_price
+                    }
+                    
+                    # Add batch info label
+                    batch_info = tk.Label(self.existing_batches_frame,
+                                        text=f"• {display_str}",
+                                        font=FONTS["small"],
+                                        bg=COLORS["bg_secondary"],
+                                        fg=COLORS["text_primary"],
+                                        anchor="w")
+                    batch_info.pack(fill=tk.X, padx=10, pady=1)
+            else:
+                no_batch_label = tk.Label(self.existing_batches_frame,
+                                        text="• No existing batches found",
+                                        font=FONTS["small"],
+                                        bg=COLORS["bg_secondary"],
+                                        fg=COLORS["text_secondary"],
+                                        anchor="w")
+                no_batch_label.pack(fill=tk.X, padx=10, pady=1)
+            
+            # Update existing batch dropdown
+            self.existing_batch_dropdown['values'] = batch_options
+            if batch_options:
+                self.existing_batch_var.set(batch_options[0])
+                self.on_existing_batch_select()
+            else:
+                self.existing_batch_var.set("")
+                
+        except Exception as e:
+            print(f"Error loading existing batches: {str(e)}")
+
+    def on_existing_batch_select(self, event=None):
+        """Handle selection of existing batch"""
+        selected = self.existing_batch_var.get()
+        if not selected or selected not in self.existing_batches_data:
+            return
+        
+        # No additional action needed for existing batch selection
+        # The data is already loaded and will be used when saving
+
+    def on_batch_mode_change(self):
+        """Handle batch mode change between existing and new"""
+        mode = self.batch_mode_var.get()
+        
+        if mode == "existing":
+            # Show existing batch selection, hide new batch fields
+            self.existing_batch_frame.pack(fill=tk.X, pady=5)
+            self.new_batch_frame.pack_forget()
+        else:
+            # Show new batch fields, hide existing batch selection
+            self.existing_batch_frame.pack_forget()
+            self.new_batch_frame.pack(fill=tk.X, pady=5)
+
+    def check_batch_duplicate(self, product_id, batch_number, mfg_date, exp_date, cost_price):
+        """Check if a batch with similar details already exists"""
+        query = """
+            SELECT id, batch_number, manufacturing_date, expiry_date, cost_price
+            FROM batches 
+            WHERE product_id = ? AND (
+                (batch_number = ?) OR
+                (manufacturing_date = ? AND expiry_date = ? AND ABS(cost_price - ?) < 0.01)
+            )
+        """
+        existing = self.controller.db.fetchall(query, (product_id, batch_number, mfg_date, exp_date, cost_price))
+        return existing
 
     def save_stock_entry(self):
-        """Save a new stock entry using inventory manager"""
+        """Save a new stock entry with proper batch management"""
         try:
-            # Import inventory manager
-            from utils.inventory_manager import InventoryManager
-            inventory_manager = InventoryManager(self.controller.db)
-            
             # Validate required fields
             if not self.stock_product_var.get():
                 messagebox.showerror("Error", "Please select a product")
@@ -1982,13 +2142,13 @@ class InventoryManagementFrame(tk.Frame):
                 messagebox.showerror("Error", "Please enter quantity")
                 return
                 
-            # Get product ID
-            selected = self.stock_product_var.get()
-            if selected not in self.stock_product_ids:
+            # Get product details
+            selected_product = self.stock_product_var.get()
+            if selected_product not in self.stock_product_ids:
                 messagebox.showerror("Error", "Invalid product selection")
                 return
                 
-            product_id = self.stock_product_ids[selected]['id']
+            product_id = self.stock_product_ids[selected_product]['id']
             
             # Parse and validate quantity
             try:
@@ -1998,64 +2158,120 @@ class InventoryManagementFrame(tk.Frame):
             except ValueError as e:
                 messagebox.showerror("Error", f"Invalid quantity: {str(e)}")
                 return
-                
-            # Parse and validate dates
-            try:
-                mfg_date = self.mfg_date_var.get() if self.mfg_date_var.get() else None
-                if mfg_date:
-                    datetime.datetime.strptime(mfg_date, "%Y-%m-%d").date()
-                    
-                expiry_date = self.expiry_date_var.get() if self.expiry_date_var.get() else None
-                if expiry_date:
-                    datetime.datetime.strptime(expiry_date, "%Y-%m-%d").date()
-            except ValueError:
-                messagebox.showerror("Error", "Invalid date format. Use YYYY-MM-DD")
-                return
-                
-            # Parse and validate purchase price
-            try:
-                cost_price = float(self.purchase_price_var.get()) if self.purchase_price_var.get() else 0.0
-                if cost_price < 0:
-                    raise ValueError("Price cannot be negative")
-            except ValueError as e:
-                messagebox.showerror("Error", f"Invalid purchase price: {str(e)}")
-                return
-                
-            # Get batch number
-            batch_number = self.batch_number_var.get() or f"BATCH{random.randint(1000, 9999)}"
+            
+            batch_mode = self.batch_mode_var.get()
             
             # Begin transaction
             self.controller.db.begin()
             
             try:
-                # Find or create batch
-                batch_id, current_qty = inventory_manager.find_or_create_batch(
-                    product_id=product_id,
-                    batch_number=batch_number,
-                    expiry_date=expiry_date,
-                    cost_price=cost_price,
-                    manufacturing_date=mfg_date
-                )
-                
-                # Update batch quantity
-                success = inventory_manager.update_batch_quantity(
-                    batch_id=batch_id,
-                    quantity_change=quantity,
-                    transaction_type="STOCK_IN",
-                    reference_type="MANUAL_ENTRY",
-                    notes=f"Manual stock entry: {quantity} units"
-                )
-                
-                if not success:
-                    raise Exception("Failed to update batch quantity")
+                if batch_mode == "existing":
+                    # Add to existing batch
+                    selected_batch = self.existing_batch_var.get()
+                    if not selected_batch or selected_batch not in self.existing_batches_data:
+                        messagebox.showerror("Error", "Please select an existing batch")
+                        return
+                    
+                    batch_data = self.existing_batches_data[selected_batch]
+                    batch_id = batch_data['id']
+                    
+                    # Update existing batch quantity
+                    new_quantity = batch_data['quantity'] + quantity
+                    self.controller.db.execute(
+                        "UPDATE batches SET quantity = ? WHERE id = ?",
+                        (new_quantity, batch_id)
+                    )
+                    
+                    # Log the transaction
+                    log_data = {
+                        "batch_id": batch_id,
+                        "product_id": product_id,
+                        "transaction_type": "STOCK_IN",
+                        "quantity_change": quantity,
+                        "quantity_before": batch_data['quantity'],
+                        "quantity_after": new_quantity,
+                        "reference_type": "MANUAL_ENTRY",
+                        "notes": f"Added {quantity} units to existing batch {batch_data['batch_number']}"
+                    }
+                    self.controller.db.insert("stock_log", log_data)
+                    
+                else:
+                    # Create new batch
+                    if not self.batch_number_var.get():
+                        messagebox.showerror("Error", "Please enter batch number for new batch")
+                        return
+                    
+                    # Validate new batch fields
+                    try:
+                        mfg_date = self.mfg_date_var.get() if self.mfg_date_var.get() else None
+                        if mfg_date:
+                            datetime.datetime.strptime(mfg_date, "%Y-%m-%d").date()
+                            
+                        expiry_date = self.expiry_date_var.get() if self.expiry_date_var.get() else None
+                        if expiry_date:
+                            datetime.datetime.strptime(expiry_date, "%Y-%m-%d").date()
+                    except ValueError:
+                        messagebox.showerror("Error", "Invalid date format. Use YYYY-MM-DD")
+                        return
+                    
+                    try:
+                        wholesale_price = float(self.wholesale_price_var.get()) if self.wholesale_price_var.get() else 0.0
+                        selling_price = float(self.selling_price_var.get()) if self.selling_price_var.get() else 0.0
+                        if wholesale_price < 0 or selling_price < 0:
+                            raise ValueError("Prices cannot be negative")
+                    except ValueError as e:
+                        messagebox.showerror("Error", f"Invalid price: {str(e)}")
+                        return
+                    
+                    batch_number = self.batch_number_var.get()
+                    
+                    # Check for duplicate batches
+                    duplicates = self.check_batch_duplicate(product_id, batch_number, mfg_date, expiry_date, wholesale_price)
+                    if duplicates:
+                        duplicate_info = "\n".join([f"• Batch {d[1]} (MFG: {d[2]}, EXP: {d[3]}, Cost: ₹{d[4]:.2f})" for d in duplicates])
+                        if not messagebox.askyesno("Duplicate Batch Detected", 
+                                                 f"Similar batch(es) already exist:\n\n{duplicate_info}\n\nDo you want to continue creating a new batch?"):
+                            return
+                    
+                    # Create new batch
+                    batch_data = {
+                        "product_id": product_id,
+                        "batch_number": batch_number,
+                        "quantity": quantity,
+                        "manufacturing_date": mfg_date,
+                        "expiry_date": expiry_date,
+                        "purchase_date": datetime.datetime.now().strftime("%Y-%m-%d"),
+                        "cost_price": wholesale_price,
+                        "selling_price": selling_price
+                    }
+                    
+                    batch_id = self.controller.db.insert("batches", batch_data)
+                    
+                    if not batch_id:
+                        raise Exception("Failed to create new batch")
+                    
+                    # Log the transaction
+                    log_data = {
+                        "batch_id": batch_id,
+                        "product_id": product_id,
+                        "transaction_type": "STOCK_IN",
+                        "quantity_change": quantity,
+                        "quantity_before": 0,
+                        "quantity_after": quantity,
+                        "reference_type": "MANUAL_ENTRY",
+                        "notes": f"Created new batch {batch_number} with {quantity} units"
+                    }
+                    self.controller.db.insert("stock_log", log_data)
                 
                 # Commit transaction
                 self.controller.db.commit()
                 
-                # Refresh the entries list
+                # Refresh displays
                 self.load_stock_entries()
+                if hasattr(self, 'stock_product_var') and self.stock_product_var.get():
+                    self.on_stock_product_select()  # Refresh existing batches display
                 
-                # Clear the form
+                # Clear form
                 self.clear_stock_entry_form()
                 
                 messagebox.showinfo("Success", "Stock entry saved successfully")
@@ -2071,11 +2287,20 @@ class InventoryManagementFrame(tk.Frame):
     def clear_stock_entry_form(self):
         """Clear all fields in the stock entry form"""
         self.stock_product_var.set('')
+        self.existing_batch_var.set('')
         self.batch_number_var.set('')
         self.quantity_var.set('')
         self.mfg_date_var.set(datetime.datetime.now().strftime("%Y-%m-%d"))
         self.expiry_date_var.set('')
-        self.purchase_price_var.set('')
+        self.wholesale_price_var.set('')
+        self.selling_price_var.set('')
+        self.batch_mode_var.set("existing")
+        self.on_batch_mode_change()
+        
+        # Clear existing batches display
+        for widget in self.existing_batches_frame.winfo_children():
+            if isinstance(widget, tk.Label) and widget.cget('text') != "Existing Batches for Selected Product:":
+                widget.destroy()
 
     def load_stock_entries(self):
         """Load recent stock entries into the treeview"""
@@ -2092,7 +2317,8 @@ class InventoryManagementFrame(tk.Frame):
                     b.quantity,
                     b.manufacturing_date,
                     b.expiry_date,
-                    p.wholesale_price
+                    b.cost_price,
+                    COALESCE(b.selling_price, p.selling_price) as selling_price
                 FROM batches b
                 JOIN products p ON b.product_id = p.id
                 ORDER BY b.created_at DESC
@@ -2105,8 +2331,9 @@ class InventoryManagementFrame(tk.Frame):
                 mfg_date = datetime.datetime.strptime(entry[4], "%Y-%m-%d").strftime("%d/%m/%Y") if entry[4] else ""
                 expiry_date = datetime.datetime.strptime(entry[5], "%Y-%m-%d").strftime("%d/%m/%Y") if entry[5] else ""
 
-                # Format price
-                price = f"₹{entry[6]:.2f}" if entry[6] else ""
+                # Format prices
+                wholesale_price = f"₹{entry[6]:.2f}" if entry[6] else ""
+                selling_price = f"₹{entry[7]:.2f}" if entry[7] else ""
 
                 self.stock_entries_tree.insert("", "end", values=(
                     created_at,
@@ -2115,7 +2342,8 @@ class InventoryManagementFrame(tk.Frame):
                     entry[3],  # Quantity
                     mfg_date,
                     expiry_date,
-                    price
+                    wholesale_price,
+                    selling_price
                 ))
 
         except Exception as e:

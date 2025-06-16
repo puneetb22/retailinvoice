@@ -982,10 +982,10 @@ class SalesFrame(tk.Frame):
             separator = tk.Frame(batch_frame, height=2, bg=COLORS["bg_secondary"])
             separator.pack(fill=tk.X, pady=(0, 10))
             
-            tk.Label(batch_frame, 
+            batch_label = tk.Label(batch_frame, 
                    text="Select Batch:",
-                   font=FONTS["regular_bold"],
-                   anchor="w").pack(anchor="w")
+                   font=FONTS["regular_bold"])
+            batch_label.pack(anchor="w", pady=(0, 5))
             
             # Create batch options with expiry dates and prices
             batch_options = []
@@ -1002,6 +1002,13 @@ class SalesFrame(tk.Frame):
                                      width=50,
                                      state="readonly")
             batch_combo.pack(fill=tk.X, pady=5)
+            
+            # Show batch count for clarity
+            batch_count_label = tk.Label(batch_frame,
+                                       text=f"Available batches: {len(batches)}",
+                                       font=FONTS["small"],
+                                       fg=COLORS["text_secondary"])
+            batch_count_label.pack(anchor="w", pady=(5, 0))
             
             # Store selected batch info and update price
             def on_batch_select(event=None):
