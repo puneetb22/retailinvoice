@@ -49,8 +49,8 @@ class InventoryManagementFrame(tk.Frame):
         # Create tabs
         self.products_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
         self.inventory_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
-        self.stock_entry_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])  # New tab
         self.batches_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
+        self.stock_entry_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])  # New tab
         self.alerts_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
         self.categories_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
         self.vendors_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
@@ -58,8 +58,8 @@ class InventoryManagementFrame(tk.Frame):
 
         self.notebook.add(self.products_tab, text="Products")
         self.notebook.add(self.inventory_tab, text="Stock Levels")
-        self.notebook.add(self.stock_entry_tab, text="Stock Entry")  # Add new tab
         self.notebook.add(self.batches_tab, text="Batch Management")
+        self.notebook.add(self.stock_entry_tab, text="Stock Entry")  # Add new tab
         self.notebook.add(self.alerts_tab, text="Alerts & Expiry")
         self.notebook.add(self.categories_tab, text="Categories")
         self.notebook.add(self.vendors_tab, text="Vendors")
@@ -71,8 +71,8 @@ class InventoryManagementFrame(tk.Frame):
         # Setup tabs
         self.setup_products_tab()
         self.setup_inventory_tab()
-        self.setup_stock_entry_tab()  # Setup new tab
         self.setup_batches_tab()
+        self.setup_stock_entry_tab()  # Setup new tab
         self.setup_alerts_tab()
         self.setup_categories_tab()
         self.setup_vendors_tab()
@@ -82,7 +82,7 @@ class InventoryManagementFrame(tk.Frame):
         if self.active_tab == "products":
             self.notebook.select(0)  # Products is the first tab
         elif self.active_tab == "stock_entry":
-            self.notebook.select(2)  # Stock Entry is the third tab
+            self.notebook.select(3)  # Stock Entry is the fourth tab
 
     def setup_products_tab(self):
         """Setup the products tab with product management functionality"""
@@ -742,18 +742,12 @@ class InventoryManagementFrame(tk.Frame):
         for item in self.batch_tree.get_children():
             self.batch_tree.delete(item)
 
-        # Modified query to prevent duplicate batch numbers
-        # Group by batch_number and select the most recent batch entry for each unique batch number
+        # Simple query to show all batches
         query = """
             SELECT b.id, p.name, b.batch_number, b.quantity, 
                    b.manufacturing_date, b.expiry_date, b.purchase_date
             FROM batches b
             JOIN products p ON b.product_id = p.id
-            JOIN (
-                SELECT product_id, batch_number, MAX(id) as max_id
-                FROM batches
-                GROUP BY product_id, batch_number
-            ) b_unique ON b.id = b_unique.max_id
         """
 
         # Add filter if not showing all
@@ -802,45 +796,30 @@ class InventoryManagementFrame(tk.Frame):
 
         # Build query based on alert type
         if alert_type == "Low Stock" or alert_type == "All Alerts":
-            # Low stock query with deduplication for batch numbers
+            # Low stock query
             query = """
                 SELECT 'Low Stock' as alert_type, p.name, b.quantity, b.batch_number, 
-                       b.expiry_date, 'Low Stock' as status, b.id
+                       b.expiry_date, 'Low Stock' as status
                 FROM batches b
                 JOIN products p ON b.product_id = p.id
-                JOIN (
-                    SELECT product_id, batch_number, MAX(id) as max_id
-                    FROM batches
-                    WHERE quantity <= ?
-                    GROUP BY product_id, batch_number
-                ) b_unique ON b.id = b_unique.max_id
                 WHERE b.quantity <= ?
                 ORDER BY b.quantity
             """
 
             # Get low stock items
-            low_stock_items = self.controller.db.fetchall(query, (low_stock_threshold, low_stock_threshold))
+            low_stock_items = self.controller.db.fetchall(query, (low_stock_threshold,))
 
             # Insert into treeview
             for item in low_stock_items:
-                self.alerts_tree.insert("", "end", values=item[:-1], tags=("low_stock",))
+                self.alerts_tree.insert("", "end", values=item, tags=("low_stock",))
 
         if alert_type == "Expiring Soon" or alert_type == "All Alerts":
-            # Expiring soon query with deduplication for batch numbers
+            # Expiring soon query
             query = """
                 SELECT 'Expiring Soon' as alert_type, p.name, b.quantity, b.batch_number, 
-                       b.expiry_date, 'Expiring Soon' as status, b.id
+                       b.expiry_date, 'Expiring Soon' as status
                 FROM batches b
                 JOIN products p ON b.product_id = p.id
-                JOIN (
-                    SELECT product_id, batch_number, MAX(id) as max_id
-                    FROM batches
-                    WHERE expiry_date IS NOT NULL
-                    AND expiry_date <= ?
-                    AND expiry_date >= ?
-                    AND quantity > 0
-                    GROUP BY product_id, batch_number
-                ) b_unique ON b.id = b_unique.max_id
                 WHERE b.expiry_date IS NOT NULL 
                 AND b.expiry_date <= ? 
                 AND b.expiry_date >= ?
@@ -850,27 +829,19 @@ class InventoryManagementFrame(tk.Frame):
 
             # Get expiring items
             expiring_items = self.controller.db.fetchall(query, 
-                (thirty_days_later.isoformat(), today.isoformat(), thirty_days_later.isoformat(), today.isoformat()))
+                (thirty_days_later.isoformat(), today.isoformat()))
 
             # Insert into treeview
             for item in expiring_items:
-                self.alerts_tree.insert("", "end", values=item[:-1], tags=("expiring",))
+                self.alerts_tree.insert("", "end", values=item, tags=("expiring",))
 
         if alert_type == "Expired" or alert_type == "All Alerts":
-            # Expired query with deduplication for batch numbers
+            # Expired query
             query = """
                 SELECT 'Expired' as alert_type, p.name, b.quantity, b.batch_number, 
-                       b.expiry_date, 'Expired' as status, b.id
+                       b.expiry_date, 'Expired' as status
                 FROM batches b
                 JOIN products p ON b.product_id = p.id
-                JOIN (
-                    SELECT product_id, batch_number, MAX(id) as max_id
-                    FROM batches
-                    WHERE expiry_date IS NOT NULL
-                    AND expiry_date < ?
-                    AND quantity > 0
-                    GROUP BY product_id, batch_number
-                ) b_unique ON b.id = b_unique.max_id
                 WHERE b.expiry_date IS NOT NULL 
                 AND b.expiry_date < ?
                 AND b.quantity > 0
@@ -878,11 +849,11 @@ class InventoryManagementFrame(tk.Frame):
             """
 
             # Get expired items
-            expired_items = self.controller.db.fetchall(query, (today.isoformat(), today.isoformat()))
+            expired_items = self.controller.db.fetchall(query, (today.isoformat(),))
 
             # Insert into treeview
             for item in expired_items:
-                self.alerts_tree.insert("", "end", values=item[:-1], tags=("expired",))
+                self.alerts_tree.insert("", "end", values=item, tags=("expired",))
 
     def view_product_batches(self, event=None):
         """View batches for selected product"""
@@ -1692,17 +1663,13 @@ class InventoryManagementFrame(tk.Frame):
 
     def setup_stock_entry_tab(self):
         """Setup the stock entry tab for adding new stock"""
-        # Create main frame for stock entry tab
-        self.stock_entry_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
-        self.notebook.add(self.stock_entry_tab, text="Stock Entry")
-        
         # Create header
         header_frame = tk.Frame(self.stock_entry_tab, bg=COLORS["primary"])
         header_frame.pack(fill=tk.X, padx=10, pady=5)
         
         header_label = tk.Label(header_frame, 
                               text="Add New Stock Entry",
-                              font=FONTS["heading"],  # Changed from "header" to "heading"
+                              font=FONTS["heading"],
                               bg=COLORS["primary"],
                               fg=COLORS["text_white"])
         header_label.pack(pady=10)
@@ -1753,10 +1720,127 @@ class InventoryManagementFrame(tk.Frame):
         self.stock_product_dropdown.bind("<<ComboboxSelected>>", self.on_stock_product_select)
         self.stock_product_dropdown.bind("<FocusIn>", lambda e: self.stock_product_dropdown.event_generate('<Down>'))
         
+        # Batch number field
+        batch_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        batch_frame.pack(fill=tk.X, pady=5)
+        
+        batch_label = tk.Label(batch_frame, 
+                             text="Batch Number:",
+                             font=FONTS["regular"],
+                             bg=COLORS["bg_primary"],
+                             fg=COLORS["text_primary"])
+        batch_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.batch_number_var = tk.StringVar()
+        batch_entry = tk.Entry(batch_frame, 
+                             textvariable=self.batch_number_var,
+                             font=FONTS["regular"],
+                             width=30)
+        batch_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Quantity field
+        quantity_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        quantity_frame.pack(fill=tk.X, pady=5)
+        
+        quantity_label = tk.Label(quantity_frame, 
+                                text="Quantity:",
+                                font=FONTS["regular"],
+                                bg=COLORS["bg_primary"],
+                                fg=COLORS["text_primary"])
+        quantity_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.quantity_var = tk.StringVar()
+        quantity_entry = tk.Entry(quantity_frame, 
+                                textvariable=self.quantity_var,
+                                font=FONTS["regular"],
+                                width=30)
+        quantity_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Manufacturing date field
+        mfg_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        mfg_frame.pack(fill=tk.X, pady=5)
+        
+        mfg_label = tk.Label(mfg_frame, 
+                           text="Manufacturing Date (YYYY-MM-DD):",
+                           font=FONTS["regular"],
+                           bg=COLORS["bg_primary"],
+                           fg=COLORS["text_primary"])
+        mfg_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.mfg_date_var = tk.StringVar()
+        self.mfg_date_var.set(datetime.datetime.now().strftime("%Y-%m-%d"))
+        mfg_entry = tk.Entry(mfg_frame, 
+                           textvariable=self.mfg_date_var,
+                           font=FONTS["regular"],
+                           width=30)
+        mfg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Expiry date field
+        expiry_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        expiry_frame.pack(fill=tk.X, pady=5)
+        
+        expiry_label = tk.Label(expiry_frame, 
+                              text="Expiry Date (YYYY-MM-DD):",
+                              font=FONTS["regular"],
+                              bg=COLORS["bg_primary"],
+                              fg=COLORS["text_primary"])
+        expiry_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.expiry_date_var = tk.StringVar()
+        expiry_entry = tk.Entry(expiry_frame, 
+                              textvariable=self.expiry_date_var,
+                              font=FONTS["regular"],
+                              width=30)
+        expiry_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Purchase price field
+        price_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        price_frame.pack(fill=tk.X, pady=5)
+        
+        price_label = tk.Label(price_frame, 
+                             text="Purchase Price:",
+                             font=FONTS["regular"],
+                             bg=COLORS["bg_primary"],
+                             fg=COLORS["text_primary"])
+        price_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.purchase_price_var = tk.StringVar()
+        price_entry = tk.Entry(price_frame, 
+                             textvariable=self.purchase_price_var,
+                             font=FONTS["regular"],
+                             width=30)
+        price_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Buttons frame
+        button_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        button_frame.pack(fill=tk.X, pady=20)
+        
+        # Save button
+        save_btn = tk.Button(button_frame,
+                           text="Save Stock Entry",
+                           font=FONTS["regular"],
+                           bg=COLORS["primary"],
+                           fg=COLORS["text_white"],
+                           padx=20,
+                           pady=10,
+                           cursor="hand2",
+                           command=self.save_stock_entry)
+        save_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Clear button
+        clear_btn = tk.Button(button_frame,
+                            text="Clear Form",
+                            font=FONTS["regular"],
+                            bg=COLORS["secondary"],
+                            fg=COLORS["text_white"],
+                            padx=20,
+                            pady=10,
+                            cursor="hand2",
+                            command=self.clear_stock_entry_form)
+        clear_btn.pack(side=tk.LEFT)
+        
         # Load products initially
         self.load_products_for_stock_entry()
-        
-        # ... rest of the existing setup code ...
 
         # Right side - Recent entries
         entries_frame = tk.Frame(content_frame, bg=COLORS["bg_primary"], width=600)
