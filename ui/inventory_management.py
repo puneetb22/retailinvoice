@@ -2084,8 +2084,8 @@ class InventoryManagementFrame(tk.Frame):
             for entry in entries:
                 # Format dates
                 created_at = datetime.datetime.strptime(entry[0], "%Y-%m-%d %H:%M:%S").strftime("%d/%m/%Y")
-                mfg_date = entry[4].strftime("%d/%m/%Y") if entry[4] else ""
-                expiry_date = entry[5].strftime("%d/%m/%Y") if entry[5] else ""
+                mfg_date = datetime.datetime.strptime(entry[4], "%Y-%m-%d").strftime("%d/%m/%Y") if entry[4] else ""
+                expiry_date = datetime.datetime.strptime(entry[5], "%Y-%m-%d").strftime("%d/%m/%Y") if entry[5] else ""
 
                 # Format price
                 price = f"₹{entry[6]:.2f}" if entry[6] else ""
