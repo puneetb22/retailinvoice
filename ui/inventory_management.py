@@ -1716,9 +1716,8 @@ class InventoryManagementFrame(tk.Frame):
                               command=self.load_products_for_stock_entry)
         refresh_btn.pack(side=tk.LEFT, padx=(5, 0))
         
-        # Bind events
+        # Bind events - remove the problematic FocusIn binding that was causing the dropdown to get stuck
         self.stock_product_dropdown.bind("<<ComboboxSelected>>", self.on_stock_product_select)
-        self.stock_product_dropdown.bind("<FocusIn>", lambda e: self.stock_product_dropdown.event_generate('<Down>'))
         
         # Batch number field
         batch_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
@@ -1839,6 +1838,9 @@ class InventoryManagementFrame(tk.Frame):
                             command=self.clear_stock_entry_form)
         clear_btn.pack(side=tk.LEFT)
         
+        # Initialize stock_product_ids dictionary
+        self.stock_product_ids = {}
+        
         # Load products initially
         self.load_products_for_stock_entry()
 
@@ -1944,7 +1946,7 @@ class InventoryManagementFrame(tk.Frame):
     def on_stock_product_select(self, event=None):
         """Handle product selection in stock entry form"""
         selected = self.stock_product_var.get()
-        if not selected or selected not in self.stock_product_ids:
+        if not selected or not hasattr(self, 'stock_product_ids') or selected not in self.stock_product_ids:
             return
             
         try:
@@ -1961,17 +1963,8 @@ class InventoryManagementFrame(tk.Frame):
                 random_suffix = random.randint(100, 999)
                 self.batch_number_var.set(f"{product_details['code']}-{date_str}-{random_suffix}")
             
-            # Set focus to quantity field
-            for widget in self.stock_entry_tab.winfo_children():
-                if isinstance(widget, tk.Frame):
-                    for child in widget.winfo_children():
-                        if isinstance(child, tk.Frame):
-                            for grandchild in child.winfo_children():
-                                if isinstance(grandchild, tk.Entry) and grandchild.winfo_name() == "!entry3":  # Quantity entry
-                                    grandchild.focus_set()
-                                    break
         except Exception as e:
-            messagebox.showerror("Error", f"Error handling product selection: {str(e)}")
+            print(f"Error handling product selection: {str(e)}")  # Log error instead of showing dialog
 
     def save_stock_entry(self):
         """Save a new stock entry"""
