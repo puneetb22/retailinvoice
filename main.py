@@ -36,6 +36,13 @@ class POSApplication(tk.Tk):
         # Load configuration
         self.config = load_config()
         
+        # Initialize default user (shopkeeper)
+        self.current_user = {
+            "id": 1,
+            "name": "Shopkeeper",
+            "role": "admin"
+        }
+        
         # Apply theme based on configuration
         theme = self.config.get('app_theme', 'light')
         set_theme(theme)

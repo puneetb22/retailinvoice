@@ -9,6 +9,11 @@ import re
 import os
 import decimal
 from decimal import Decimal, InvalidOperation
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+import calendar
+import locale
+import json
 
 from assets.styles import COLORS, FONTS, STYLES
 from utils.helpers import format_currency, parse_currency
@@ -316,13 +321,65 @@ class SalesFrame(tk.Frame):
                                      font=FONTS["regular"])
         self.customer_label.pack_forget()
         
+        # Create a frame for cart label and date picker
+        cart_header_frame = tk.Frame(parent, bg=COLORS["bg_primary"])
+        cart_header_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
+        
         # Cart label
-        cart_label = tk.Label(parent, 
+        cart_label = tk.Label(cart_header_frame, 
                              text="Cart Items",
                              font=FONTS["subheading"],
                              bg=COLORS["bg_primary"],
                              fg=COLORS["text_primary"])
-        cart_label.pack(anchor="w", padx=10, pady=(10, 5))
+        cart_label.pack(side=tk.LEFT)
+        
+        # Invoice date label and picker
+        date_frame = tk.Frame(cart_header_frame, bg=COLORS["bg_primary"])
+        date_frame.pack(side=tk.RIGHT)
+        
+        date_label = tk.Label(date_frame,
+                             text="Invoice Date:",
+                             font=FONTS["regular"],
+                             bg=COLORS["bg_primary"],
+                             fg=COLORS["text_primary"])
+        date_label.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Create date entry with calendar button
+        self.invoice_date_var = tk.StringVar(value=datetime.datetime.now().strftime("%d/%m/%Y"))
+        self.invoice_date_obj = datetime.datetime.now()  # Store the actual date object
+        date_entry = ttk.Entry(date_frame,
+                             textvariable=self.invoice_date_var,
+                             width=12,
+                             font=FONTS["regular"],
+                             style='primary.TEntry')
+        date_entry.pack(side=tk.LEFT)
+        
+        def show_calendar():
+            # Parse current date from DD/MM/YYYY format
+            try:
+                current_date = datetime.datetime.strptime(self.invoice_date_var.get(), "%d/%m/%Y").date()
+            except ValueError:
+                current_date = datetime.datetime.now().date()
+                
+            dialog = DatePickerDialog(
+                parent=self,
+                title="Select Invoice Date",
+                firstweekday=6,  # Sunday first
+                startdate=current_date,
+                bootstyle="primary"
+            )
+            if hasattr(dialog, 'date_selected'):
+                # Store both the string and datetime object
+                self.invoice_date_var.set(dialog.date_selected.strftime("%d/%m/%Y"))
+                self.invoice_date_obj = datetime.datetime.combine(dialog.date_selected, datetime.datetime.now().time())
+        
+        # Add calendar button
+        cal_button = ttk.Button(date_frame,
+                              text="📅",
+                              style='primary.TButton',
+                              width=3,
+                              command=show_calendar)
+        cal_button.pack(side=tk.LEFT, padx=(5, 0))
         
         # Cart treeview frame
         tree_frame = tk.Frame(parent)
@@ -781,7 +838,7 @@ class SalesFrame(tk.Frame):
             self.products_tree.insert("", "end", values=(product_id, name, formatted_price, available_stock))
     
     def add_to_cart(self, event=None):
-        """Add selected product to cart"""
+        """Add selected product to cart with batch selection"""
         # Get selected product
         if event:  # Triggered by double-click
             selected_item = self.products_tree.selection()
@@ -802,21 +859,43 @@ class SalesFrame(tk.Frame):
         product_price = parse_currency(product_values[2])
         available_stock = int(product_values[3])
         
-        # Get additional product details from database
+        # Get additional product details and batches from database
         db = self.controller.db
         product_details = db.fetchone("""
-            SELECT hsn_code, tax_percentage
-            FROM products
-            WHERE id = ?
+            SELECT p.hsn_code, p.tax_percentage,
+                   GROUP_CONCAT(b.id || '|' || b.batch_number || '|' || b.quantity || '|' || b.expiry_date) as batch_info
+            FROM products p
+            LEFT JOIN batches b ON p.id = b.product_id 
+            AND (b.expiry_date > date('now') OR b.expiry_date IS NULL)
+            AND b.quantity > 0
+            WHERE p.id = ?
+            GROUP BY p.id
         """, (product_id,))
         
         # Set default values if not found
         if product_details:
             hsn_code = product_details[0] or ""
             tax_percentage = product_details[1] or 18  # Default 18% GST if not set
+            batch_info = product_details[2] or ""
         else:
             hsn_code = ""
             tax_percentage = 18  # Default 18% GST
+            batch_info = ""
+            
+        # Parse batch information
+        batches = []
+        if batch_info:
+            for batch in batch_info.split(','):
+                try:
+                    batch_id, batch_number, quantity, expiry = batch.split('|')
+                    batches.append({
+                        'id': int(batch_id),
+                        'number': batch_number,
+                        'quantity': int(quantity),
+                        'expiry': expiry
+                    })
+                except (ValueError, IndexError):
+                    continue
         
         # Check stock
         if available_stock <= 0:
@@ -831,7 +910,7 @@ class SalesFrame(tk.Frame):
         # Ask for quantity and discount
         dialog = tk.Toplevel(self)
         dialog.title("Add to Cart")
-        dialog.geometry("400x300")
+        dialog.geometry("400x350")  # Made taller to accommodate batch dropdown
         dialog.resizable(False, False)
         dialog.transient(self.winfo_toplevel())
         dialog.grab_set()
@@ -874,6 +953,47 @@ class SalesFrame(tk.Frame):
                 dialog.destroy()
             ])
             return
+        
+        # Batch selection (if multiple batches exist)
+        selected_batch = [None]  # Use list to store selected batch for access in nested functions
+        if len(batches) > 1:
+            batch_frame = tk.Frame(content_frame)
+            batch_frame.pack(fill=tk.X, pady=5)
+            
+            tk.Label(batch_frame, 
+                   text="Batch:",
+                   font=FONTS["regular_bold"],
+                   width=12,
+                   anchor="w").grid(row=0, column=0, sticky="w")
+            
+            # Create batch options with expiry dates
+            batch_options = []
+            for batch in batches:
+                expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else ""
+                batch_options.append(f"{batch['number']}{expiry_str} - {batch['quantity']} units")
+            
+            batch_var = tk.StringVar(value=batch_options[0] if batch_options else "")
+            batch_combo = ttk.Combobox(batch_frame,
+                                     textvariable=batch_var,
+                                     values=batch_options,
+                                     font=FONTS["regular"],
+                                     width=25,
+                                     state="readonly")
+            batch_combo.grid(row=0, column=1, sticky="w")
+            
+            # Store selected batch info
+            def on_batch_select(event):
+                selected = batch_var.get()
+                for batch in batches:
+                    expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else ""
+                    if selected.startswith(f"{batch['number']}{expiry_str}"):
+                        selected_batch[0] = batch
+                        break
+            
+            batch_combo.bind("<<ComboboxSelected>>", on_batch_select)
+            # Set initial batch
+            if batch_options:
+                selected_batch[0] = batches[0]
         
         # Quantity
         qty_frame = tk.Frame(content_frame)
@@ -949,26 +1069,33 @@ class SalesFrame(tk.Frame):
                                          "Quantity must be greater than zero!")
                     return
                 
-                # Get the most current available stock again
-                db_stock = db.fetchone("""
-                    SELECT COALESCE(SUM(b.quantity), 0) as stock
-                    FROM products p
-                    LEFT JOIN batches b ON p.id = b.product_id AND (b.expiry_date > date('now') OR b.expiry_date IS NULL)
-                    WHERE p.id = ?
-                    GROUP BY p.id
-                """, (product_id,))
-                
-                actual_stock = db_stock[0] if db_stock else 0
-                reserved_qty = self.reserved_inventory.get(product_id, 0)
-                real_available_stock = max(0, actual_stock - reserved_qty)
-                
-                # Check against real-time stock
-                if quantity > real_available_stock:
-                    messagebox.showwarning("Insufficient Stock", 
-                                         f"Only {real_available_stock} units available!")
-                    # Update the label to show the current stock
-                    stock_label.config(text=f"Price: {product_values[2]} | Available: {real_available_stock}")
-                    return
+                # Check batch-specific stock if batch selection exists
+                if selected_batch[0]:
+                    if quantity > selected_batch[0]['quantity']:
+                        messagebox.showwarning("Insufficient Stock", 
+                                             f"Only {selected_batch[0]['quantity']} units available in batch {selected_batch[0]['number']}!")
+                        return
+                else:
+                    # Get the most current available stock again
+                    db_stock = db.fetchone("""
+                        SELECT COALESCE(SUM(b.quantity), 0) as stock
+                        FROM products p
+                        LEFT JOIN batches b ON p.id = b.product_id AND (b.expiry_date > date('now') OR b.expiry_date IS NULL)
+                        WHERE p.id = ?
+                        GROUP BY p.id
+                    """, (product_id,))
+                    
+                    actual_stock = db_stock[0] if db_stock else 0
+                    reserved_qty = self.reserved_inventory.get(product_id, 0)
+                    real_available_stock = max(0, actual_stock - reserved_qty)
+                    
+                    # Check against real-time stock
+                    if quantity > real_available_stock:
+                        messagebox.showwarning("Insufficient Stock", 
+                                             f"Only {real_available_stock} units available!")
+                        # Update the label to show the current stock
+                        stock_label.config(text=f"Price: {product_values[2]} | Available: {real_available_stock}")
+                        return
                 
                 # Validate discount
                 if discount < 0 or discount > 100:
@@ -983,7 +1110,7 @@ class SalesFrame(tk.Frame):
                 # Check if product already exists in cart
                 existing_item = None
                 for item in self.cart_items:
-                    if item["product_id"] == product_id:
+                    if item["product_id"] == product_id and item.get("batch_id") == (selected_batch[0]['id'] if selected_batch[0] else None):
                         existing_item = item
                         break
                 
@@ -1002,7 +1129,7 @@ class SalesFrame(tk.Frame):
                         self.reserved_inventory[product_id] += quantity
                 else:
                     # Add as new item to cart
-                    self.cart_items.append({
+                    cart_item = {
                         "id": self.next_item_id,
                         "product_id": product_id,
                         "name": product_name,
@@ -1012,7 +1139,17 @@ class SalesFrame(tk.Frame):
                         "total": total,
                         "hsn_code": hsn_code,
                         "tax_percentage": tax_percentage
-                    })
+                    }
+                    
+                    # Add batch information if available
+                    if selected_batch[0]:
+                        cart_item.update({
+                            "batch_id": selected_batch[0]['id'],
+                            "batch_number": selected_batch[0]['number'],
+                            "expiry_date": selected_batch[0]['expiry']
+                        })
+                    
+                    self.cart_items.append(cart_item)
                     
                     # Increment next item ID
                     self.next_item_id += 1
@@ -1294,116 +1431,145 @@ class SalesFrame(tk.Frame):
         dialog.wait_window()
     
     def update_cart(self):
-        """Update cart display and totals"""
-        # Clear existing items in cart treeview
+        """Update the cart treeview display"""
+        # Clear existing items
         for item in self.cart_tree.get_children():
             self.cart_tree.delete(item)
             
-        # Add cart items to treeview
+        # Add updated items
         for item in self.cart_items:
-            # Format price and total with Rupee symbol
-            formatted_price = format_currency(item["price"])
-            formatted_total = format_currency(item["total"])
+            # Format values for display
+            price = format_currency(item["price"])
+            quantity = str(item["quantity"])
+            discount = f"{item.get('discount', 0)}%" if item.get('discount', 0) > 0 else ""
+            total = format_currency(item["total"])
             
             # Insert into treeview
             self.cart_tree.insert("", "end", values=(
-                item["id"],
                 item["name"],
-                formatted_price,
-                item["quantity"],
-                item["discount"],
-                formatted_total
+                price,
+                quantity,
+                discount,
+                total
             ))
             
-        # Update totals
+        # Update totals after cart display is updated
         self.update_totals()
     
     def update_totals(self):
-        """Calculate and update cart totals"""
-        # Calculate subtotal
-        subtotal = sum(item["total"] for item in self.cart_items)
+        """Calculate and update cart totals with correct GST handling for inclusive pricing"""
+        # Initialize totals
+        subtotal = Decimal('0')
+        taxable_value = Decimal('0')
+        total_tax = Decimal('0')
+        total_cgst = Decimal('0')
+        total_sgst = Decimal('0')
         
-        # Apply any additional discount - using Decimal for consistent math
-        try:
-            discount_value = Decimal(str(self.discount_var.get() or '0'))
-            discount_type = self.discount_type_var.get()
+        # First calculate item-level totals and taxes
+        for item in self.cart_items:
+            # Get item details with proper decimal handling
+            inclusive_price = Decimal(str(item["price"]))
+            quantity = Decimal(str(item["quantity"]))
+            item_discount_pct = Decimal(str(item.get("discount", 0))) / Decimal('100')
+            gst_rate = Decimal(str(item.get("tax_percentage", 18))) / Decimal('100')
             
-            if discount_type == "amount":
+            # Calculate item total before discount (inclusive of GST)
+            item_total = inclusive_price * quantity
+            
+            # Apply item-level discount
+            item_discount_amount = item_total * item_discount_pct
+            item_discounted_total = item_total - item_discount_amount
+            
+            # Calculate taxable value from discounted total (inclusive price)
+            # Formula: taxable_value = total_price / (1 + gst_rate)
+            item_taxable_value = item_discounted_total / (Decimal('1') + gst_rate)
+            
+            # Calculate GST amount (difference between total and taxable value)
+            item_tax = item_discounted_total - item_taxable_value
+            
+            # Split GST into CGST and SGST (50-50)
+            item_cgst = item_tax / Decimal('2')
+            item_sgst = item_tax / Decimal('2')
+            
+            # Update item totals
+            item["total"] = item_discounted_total
+            item["taxable_value"] = item_taxable_value
+            item["tax_amount"] = item_tax
+            item["cgst_amount"] = item_cgst
+            item["sgst_amount"] = item_sgst
+            
+            # Add to running totals
+            subtotal += item_discounted_total
+            taxable_value += item_taxable_value
+            total_tax += item_tax
+            total_cgst += item_cgst
+            total_sgst += item_sgst
+        
+        # Apply bill-level discount if any
+        try:
+            bill_discount_value = Decimal(str(self.discount_var.get() or '0'))
+            bill_discount_type = self.discount_type_var.get()
+            
+            if bill_discount_type == "amount":
                 # Fixed amount discount
-                discount_amount = discount_value
+                bill_discount_amount = bill_discount_value
             else:
                 # Percentage discount
-                discount_amount = subtotal * discount_value / Decimal('100')
-                
-            # Ensure discount doesn't exceed subtotal
-            if discount_amount > subtotal:
-                discount_amount = subtotal
+                bill_discount_amount = subtotal * bill_discount_value / Decimal('100')
             
-            # Calculate final subtotal after discount
-            final_subtotal = subtotal - discount_amount
+            # Ensure discount doesn't exceed subtotal
+            if bill_discount_amount > subtotal:
+                bill_discount_amount = subtotal
+                
+            # Calculate discount ratio to apply proportionally
+            if subtotal > Decimal('0'):
+                discount_ratio = Decimal('1') - (bill_discount_amount / subtotal)
+            else:
+                discount_ratio = Decimal('1')
+                
+            # Apply bill discount proportionally to all components
+            final_subtotal = subtotal * discount_ratio
+            final_taxable_value = taxable_value * discount_ratio
+            final_tax = total_tax * discount_ratio
+            final_cgst = total_cgst * discount_ratio
+            final_sgst = total_sgst * discount_ratio
             
         except (ValueError, InvalidOperation):
             # Invalid discount value, treat as zero
-            discount_amount = Decimal('0')
+            bill_discount_amount = Decimal('0')
             final_subtotal = subtotal
+            final_taxable_value = taxable_value
+            final_tax = total_tax
+            final_cgst = total_cgst
+            final_sgst = total_sgst
         
-        # Calculate tax based on individual item tax rates with INCLUSIVE tax approach
-        tax_amount = Decimal('0')
-        taxable_value = Decimal('0')
-        
-        # First calculate proportion of each item after cart-level discount
-        if final_subtotal > Decimal('0'):
-            discount_ratio = Decimal('1') - (Decimal(str(discount_amount)) / Decimal(str(subtotal))) if subtotal > Decimal('0') else Decimal('1')
-            
-            # Calculate tax for each item based on its individual tax rate (now defaulting to 18%)
-            for item in self.cart_items:
-                # Get item's tax rate (default to 18% if not specified)
-                item_tax_percentage = Decimal(str(item.get("tax_percentage", 18)))
-                item_tax_rate = item_tax_percentage / Decimal('100')
-                
-                # Calculate item's post-discount amount (this is inclusive of tax)
-                item_discounted_total = item["total"] * discount_ratio
-                
-                # Calculate taxable value (excluding tax) using the formula:
-                # taxable_value = total_price / (1 + tax_rate)
-                item_taxable_value = item_discounted_total / (Decimal('1') + item_tax_rate)
-                
-                # Calculate tax amount (difference between total and taxable value)
-                item_tax = item_discounted_total - item_taxable_value
-                
-                # Add to totals
-                tax_amount += item_tax
-                taxable_value += item_taxable_value
-        
-        # Store CGST and SGST separately for invoice generation (split evenly)
-        self.cgst_amount = tax_amount / Decimal('2')
-        self.sgst_amount = tax_amount / Decimal('2')
-        
-        # Store the taxable value (excluding tax) for invoice generation
-        self.taxable_value = taxable_value
-        
-        # Calculate total
-        total = final_subtotal + tax_amount
+        # Calculate final total
+        total = final_subtotal
         
         # Calculate rounded total (to nearest whole number)
         total_rounded = round(total)
         rounding_adjustment = total_rounded - total
         
-        # Store values for payment processing
+        # Store values for payment processing and invoice generation
         self.original_total = total
         self.rounded_total = total_rounded
         self.rounding_adjustment = rounding_adjustment
+        self.taxable_value = final_taxable_value
+        self.cgst_amount = final_cgst
+        self.sgst_amount = final_sgst
+        self.total_tax = final_tax
         
-        # Update labels with improved tax breakdown
+        # Update labels
         self.subtotal_label.config(text=format_currency(subtotal))
-        self.discount_amount_label.config(text=f"- {format_currency(discount_amount)}")
-        
-        # Update separate CGST and SGST labels
-        self.cgst_label.config(text=format_currency(self.cgst_amount))
-        self.sgst_label.config(text=format_currency(self.sgst_amount))
-        
-        # Keep the original tax_label updated for compatibility
-        self.tax_label.config(text=format_currency(tax_amount))
+        if bill_discount_amount > Decimal('0'):
+            self.discount_amount_label.config(text=f"- {format_currency(bill_discount_amount)}")
+        else:
+            self.discount_amount_label.config(text="")
+            
+        # Update tax labels
+        self.cgst_label.config(text=format_currency(final_cgst))
+        self.sgst_label.config(text=format_currency(final_sgst))
+        self.tax_label.config(text=format_currency(final_tax))
         
         # Show both original and rounded totals when there's a difference
         if abs(rounding_adjustment) > Decimal('0.01'):
@@ -3544,6 +3710,37 @@ class SalesFrame(tk.Frame):
         # Calculate final subtotal after discount
         final_subtotal = subtotal - discount_amount
         
+        # Calculate tax based on individual item tax rates
+        tax_amount = Decimal('0')
+        taxable_value = Decimal('0')
+        
+        # First calculate proportion of each item after cart-level discount
+        if final_subtotal > Decimal('0'):
+            discount_ratio = Decimal('1') - (discount_amount / subtotal) if subtotal > Decimal('0') else Decimal('1')
+            
+            # Calculate tax for each item based on its individual tax rate
+            for item in self.cart_items:
+                # Get item's tax rate (default to 18% if not specified)
+                item_tax_percentage = Decimal(str(item.get("tax_percentage", 18)))
+                item_tax_rate = item_tax_percentage / Decimal('100')
+                
+                # Calculate item's post-discount amount
+                item_discounted_total = item["total"] * discount_ratio
+                
+                # Calculate taxable value (excluding tax)
+                item_taxable_value = item_discounted_total / (Decimal('1') + item_tax_rate)
+                
+                # Calculate tax amount
+                item_tax = item_discounted_total - item_taxable_value
+                
+                # Add to totals
+                tax_amount += item_tax
+                taxable_value += item_taxable_value
+        
+        # Store CGST and SGST separately (split evenly)
+        cgst_amount = tax_amount / Decimal('2')
+        sgst_amount = tax_amount / Decimal('2')
+        
         # Round to nearest whole number (requested feature)
         final_subtotal_rounded = round(final_subtotal)
         
@@ -3559,17 +3756,19 @@ class SalesFrame(tk.Frame):
             # Begin transaction
             db.begin()
             
-            # Get financial year for invoice number prefix (Indian Financial Year starts in April)
-            today = datetime.datetime.now()
-            if today.month >= 4:  # After April 1
-                fy_start = today.year
-                fy_end = today.year + 1
-            else:
-                fy_start = today.year - 1
-                fy_end = today.year
+            # Use the selected invoice date if available, otherwise use current time
+            sale_date = self.invoice_date_obj if hasattr(self, 'invoice_date_obj') else datetime.datetime.now()
+            formatted_sale_date = sale_date.strftime('%Y-%m-%d %H:%M:%S')
             
-            # Format as YY-YY (e.g., 24-25) exactly as requested by user 
-            # Extract last 2 digits of each year
+            # Get financial year for invoice number prefix (Indian Financial Year starts in April)
+            if sale_date.month >= 4:  # After April 1
+                fy_start = sale_date.year
+                fy_end = sale_date.year + 1
+            else:
+                fy_start = sale_date.year - 1
+                fy_end = sale_date.year
+            
+            # Format as YY-YY (e.g., 24-25)
             fy_prefix = f"{str(fy_start)[-2:]}-{str(fy_end)[-2:]}"
             
             # Get store name for invoice number prefix
@@ -3578,56 +3777,31 @@ class SalesFrame(tk.Frame):
             if store_info and store_info[0] and store_info[0].strip():
                 store_name = store_info[0].strip()
             
-            # Debug output
-            print(f"Using store prefix: {store_name}, financial year: {fy_prefix}")
-            
-            # Get next invoice number - search both tables for the highest number
+            # Get next invoice number
             invoice_prefix = f"{fy_prefix}/{store_name}-"
             
-            last_invoice_sales = db.fetchone("""
+            # Get last invoice number
+            last_invoice = db.fetchone("""
                 SELECT invoice_number FROM sales
                 WHERE invoice_number LIKE ?
                 ORDER BY id DESC LIMIT 1
             """, (f"{fy_prefix}/%",))
             
-            last_invoice_invoices = db.fetchone("""
-                SELECT invoice_number FROM invoices
-                WHERE invoice_number LIKE ?
-                ORDER BY id DESC LIMIT 1
-            """, (f"{fy_prefix}/%",))
-            
-            # Find the highest invoice number across both tables
+            # Calculate next number
             last_num = 0
-            
-            if last_invoice_sales:
+            if last_invoice:
                 try:
-                    # Extract the numeric part
-                    last_part = last_invoice_sales[0].split('-')[-1]
-                    sales_num = int(last_part)
-                    last_num = max(last_num, sales_num)
+                    last_part = last_invoice[0].split('-')[-1]
+                    last_num = int(last_part)
                 except (ValueError, IndexError, TypeError) as e:
-                    print(f"Error parsing sales invoice number: {e}")
-            
-            if last_invoice_invoices:
-                try:
-                    # Extract the numeric part
-                    last_part = last_invoice_invoices[0].split('-')[-1]
-                    invoices_num = int(last_part)
-                    last_num = max(last_num, invoices_num)
-                except (ValueError, IndexError, TypeError) as e:
-                    print(f"Error parsing invoices invoice number: {e}")
+                    print(f"Error parsing invoice number: {e}")
             
             # Next invoice number
             invoice_num = last_num + 1
-            
-            # Format invoice number with 3 digits (e.g., 24-25/AGT-001)
             invoice_number = f"{fy_prefix}/{store_name}-{invoice_num:03d}"
             
-            # Debug output
-            print(f"Generated invoice number: {invoice_number}")
-            
-            # Create sale record with better tax handling (split into CGST and SGST)
-            tax_amount = Decimal(str(final_subtotal)) * Decimal('0.18')  # 18% GST (9% CGST + 9% SGST)
+            # Get current user ID
+            user_id = self.controller.current_user.get("id", 1)
             
             # Convert all Decimal values to float for SQLite compatibility
             sale_id = db.insert("sales", {
@@ -3636,13 +3810,43 @@ class SalesFrame(tk.Frame):
                 "subtotal": float(subtotal),
                 "discount": float(discount_amount),
                 "tax": float(tax_amount),  # Total GST (18%)
-                "cgst": float(tax_amount / Decimal('2')),  # 9% CGST
-                "sgst": float(tax_amount / Decimal('2')),  # 9% SGST
+                "cgst": float(cgst_amount),  # 9% CGST
+                "sgst": float(sgst_amount),  # 9% SGST
                 "total": float(payment_data["amount"]),
                 "payment_type": payment_data["payment_type"],
                 "payment_reference": payment_data.get("reference"),
-                "sale_date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                "user_id": 1  # Default user ID
+                "sale_date": formatted_sale_date,  # Use the formatted sale date
+                "user_id": user_id
+            })
+            
+            # Get payment details from payment_data
+            cash_amount = float(payment_data.get("cash_amount", 0))
+            upi_amount = float(payment_data.get("upi_amount", 0))
+            credit_amount = float(payment_data.get("credit_amount", 0))
+            upi_reference = payment_data.get("reference", "")
+            credit_payment_method = None
+            credit_reference = None
+            
+            # Insert into invoices table with the same date
+            invoice_id = db.insert("invoices", {
+                "invoice_number": invoice_number,
+                "customer_id": self.current_customer["id"],
+                "subtotal": float(subtotal),
+                "discount_amount": float(discount_amount),
+                "tax_amount": float(tax_amount),
+                "total_amount": float(payment_data["amount"]),
+                "payment_method": payment_data["payment_type"],
+                "payment_status": "PAID" if payment_data["payment_type"] != "CREDIT" and 
+                                          not (payment_data["payment_type"] == "SPLIT" and credit_amount > 0) 
+                                   else "PARTIALLY_PAID" if payment_data["payment_type"] == "SPLIT" and credit_amount > 0 
+                                   else "UNPAID",
+                "cash_amount": cash_amount,
+                "upi_amount": upi_amount,
+                "upi_reference": upi_reference,
+                "credit_amount": credit_amount,
+                "credit_payment_method": credit_payment_method,
+                "credit_reference": credit_reference,
+                "invoice_date": formatted_sale_date  # Use the same formatted sale date
             })
             
             # Store split payment details if applicable
@@ -3707,27 +3911,6 @@ class SalesFrame(tk.Frame):
                     db.execute("ALTER TABLE invoices ADD COLUMN credit_reference TEXT")
             except Exception as e:
                 print(f"Warning: Could not check/add columns: {e}")
-            
-            invoice_id = db.insert("invoices", {
-                "invoice_number": invoice_number,
-                "customer_id": self.current_customer["id"],
-                "subtotal": float(subtotal),
-                "discount_amount": float(discount_amount),
-                "tax_amount": float(tax_amount),
-                "total_amount": float(payment_data["amount"]),
-                "payment_method": payment_data["payment_type"],
-                "payment_status": "PAID" if payment_data["payment_type"] != "CREDIT" and 
-                                          not (payment_data["payment_type"] == "SPLIT" and credit_amount > 0) 
-                                   else "PARTIALLY_PAID" if payment_data["payment_type"] == "SPLIT" and credit_amount > 0 
-                                   else "UNPAID",
-                "cash_amount": cash_amount,
-                "upi_amount": upi_amount,
-                "upi_reference": upi_reference,
-                "credit_amount": credit_amount,
-                "credit_payment_method": credit_payment_method,
-                "credit_reference": credit_reference,
-                "invoice_date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            })
             
             # Store sale items
             for item in self.cart_items:
@@ -3924,9 +4107,7 @@ class SalesFrame(tk.Frame):
                 messagebox.showerror("Error", "Could not find sale details for invoice generation!")
                 return
             
-            # Get sale items with HSN code prioritizing direct HSN code stored in sale_items
-            # This ensures quick add items with manually entered HSN codes work properly
-            # Also get additional product fields for invoice display
+            # Get sale items with HSN code
             items = db.fetchall("""
                 SELECT si.*, 
                        CASE WHEN si.hsn_code IS NOT NULL AND si.hsn_code != '' 
@@ -3957,18 +4138,13 @@ class SalesFrame(tk.Frame):
             for key, value in settings:
                 store_info[key] = value
             
-            # Prepare invoice data - using correct index positions based on the sales table structure
-            # The order in the sales table: id(0), customer_id(1), invoice_number(2), subtotal(3), discount(4), 
-            # tax(5), total(6), payment_type(7), payment_reference(8), sale_date(9), user_id(10), cgst(11), sgst(12)
-            # Plus additional columns from the JOIN: customer_name(13), customer_phone(14), customer_address(15), 
-            # customer_village(16), customer_gstin(17)
-            
-            # Format the date properly - handle parsing errors gracefully
+            # Format the date properly - use the sale date from the database
             try:
                 sale_date = datetime.datetime.strptime(sale[9], '%Y-%m-%d %H:%M:%S')
                 formatted_date = sale_date.strftime('%d/%m/%Y')
                 formatted_time = sale_date.strftime('%I:%M %p')
-            except ValueError:
+            except (ValueError, IndexError) as e:
+                print(f"Error parsing sale date: {e}")
                 # Fallback to current time if there's a parsing error
                 current_datetime = datetime.datetime.now()
                 formatted_date = current_datetime.strftime('%d/%m/%Y')
@@ -4003,206 +4179,38 @@ class SalesFrame(tk.Frame):
                     "reference": sale[8]  # payment_reference
                 }
             }
-        except Exception as e:
-            print(f"Error preparing invoice data: {str(e)}")
-            messagebox.showerror("Error", f"Failed to prepare invoice: {str(e)}")
-            return None
-        
-        # Add payment split details if applicable
-        if sale[7] == "SPLIT":  # Updated index for payment_type
-            try:
-                # First check if payment_splits table has credit_amount column
-                cols = db.fetchall("PRAGMA table_info(payment_splits)")
-                col_names = [col[1] for col in cols]
-                
-                # Build query based on available columns
-                query = "SELECT cash_amount, upi_amount, upi_reference"
-                if "credit_amount" in col_names:
-                    query += ", credit_amount"
-                query += " FROM payment_splits WHERE sale_id = ?"
-                
-                payment_split = db.fetchone(query, (sale_id,))
-                
-                if payment_split:
-                    split_data = {
-                        "cash_amount": payment_split[0],
-                        "upi_amount": payment_split[1],
-                        "upi_reference": payment_split[2]
-                    }
-                    
-                    # Add credit amount if available
-                    if "credit_amount" in col_names and len(payment_split) > 3:
-                        split_data["credit_amount"] = payment_split[3]
-                    
-                    invoice_data["payment"]["split"] = split_data
-            except Exception as e:
-                print(f"Error retrieving payment split details: {e}")
-        
-        # Add items with safer item processing
-        for item in items:
-            try:
-                # Create a safer dictionary mapping for item values
-                # The last column (12 or 13 depending on the query) is our resolved_hsn_code from the query
-                item_dict = {
-                    "id": item[0] if len(item) > 0 else None,
-                    "sale_id": item[1] if len(item) > 1 else None,
-                    "product_id": item[2] if len(item) > 2 else None,
-                    "product_name": item[3] if len(item) > 3 else "Unknown Product",
-                    "quantity": item[4] if len(item) > 4 else 0,
-                    "price": item[5] if len(item) > 5 else 0,
-                    "discount_percent": item[6] if len(item) > 6 else 0,
-                    "tax_percentage": item[7] if len(item) > 7 else 0,
-                    "tax_amount": item[8] if len(item) > 8 else 0,
-                    "total": item[9] if len(item) > 9 else 0,
-                }
-                
-                # Get the resolved HSN code from the last column (the one we get from our CASE WHEN query)
-                # For safety, get the last item in the tuple
-                hsn_code = item[-1] if len(item) > 10 and item[-1] not in [None, ""] else "-"
-                
-                # Debug output to verify HSN code handling
-                print(f"Processing invoice item '{item_dict['product_name']}', HSN from query: '{hsn_code}'")
-                
-                # Extract additional product details from item tuple
-                # The index positions should match the select statement above
-                # Original select had 10 columns (0-9), then we added resolved_hsn_code and more fields
-                manufacturer = item[12] if len(item) > 12 else ""  # p.manufacturer
-                unit = item[13] if len(item) > 13 else "pc"         # p.unit
-                batch_no = item[14] if len(item) > 14 else ""       # p.batch_no
-                expiry_date = item[15] if len(item) > 15 else ""    # p.expiry_date
-                
-                # Try to get batch details from batches table if available
-                batch_number = item[16] if len(item) > 16 else ""    # b.batch_number
-                company_name = item[17] if len(item) > 17 else ""    # b.company_name
-                batch_expiry = item[18] if len(item) > 18 else ""    # b.expiry_date
-                
-                # Prefer batch table data over product data if available
-                final_batch_no = batch_number if batch_number else batch_no
-                final_company = company_name if company_name else manufacturer
-                final_expiry = batch_expiry if batch_expiry else expiry_date
-                
-                # Debug to verify fields
-                print(f"Adding item with manufacturer: {final_company}, batch: {final_batch_no}, expiry: {final_expiry}, unit: {unit}")
-                
-                # Using the dictionary to avoid index errors
-                invoice_data["items"].append({
-                    "name": item_dict["product_name"],
-                    "hsn_code": hsn_code,
-                    "quantity": item_dict["quantity"],
-                    "price": item_dict["price"],
-                    "discount": item_dict["discount_percent"],
-                    "tax_percentage": item_dict["tax_percentage"],
-                    "tax_amount": item_dict["tax_amount"],
-                    "total": item_dict["total"],
-                    "manufacturer": final_company,
-                    "company_name": final_company,
-                    "batch_no": final_batch_no,
-                    "batch": final_batch_no,
-                    "expiry_date": final_expiry,
-                    "expiry": final_expiry,
-                    "unit": unit,
-                    "product_id": item_dict["product_id"]
-                })
-                
-                # Debug output to trace what's being added
-                print(f"Added invoice item: {item_dict['product_name']}, HSN: {hsn_code}")
-                
-            except Exception as e:
-                print(f"Error processing invoice item: {e}, item data: {item}")
-                # Continue with other items instead of failing completely
-        
-        try:
-            # Get invoice directory - use relative paths for better compatibility
-            # Store invoices in a subdirectory of the current app directory
+            
+            # Get invoice directory
             invoices_dir = os.path.join(".", "invoices")
             os.makedirs(invoices_dir, exist_ok=True)
             
-            # Save path with consistent naming format - always PDF format to match template exactly
-            # Get invoice prefix from invoice number (it's in the format like "24-25/ABC-001")
-            invoice_parts = invoice_number.split('/')
-            
-            if len(invoice_parts) > 1:
-                # Extract prefix from the invoice number (e.g., "ABC" from "24-25/ABC-001")
-                prefix_part = invoice_parts[1].split('-')[0]
-            else:
-                # Fallback to using the invoice number itself
-                prefix_part = "INV"
-                
-            file_name = f"{prefix_part}_{invoice_number.replace('/', '-')}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+            # Generate PDF filename using invoice number (no timestamp)
+            file_name = f"invoice_{invoice_number.replace('/', '-')}.pdf"
             save_path = os.path.join(invoices_dir, file_name)
             
-            # Debug output
-            print(f"Creating invoice file at: {os.path.abspath(save_path)} in PDF format")
-            
-            # Get payment history if this is a credit or split payment with credit
-            payment_status = db.fetchone("SELECT payment_status FROM invoices WHERE invoice_number = ?", (invoice_number,))
-            if payment_status and payment_status[0] in ['UNPAID', 'PARTIALLY_PAID']:
-                # Get payment history data
-                query = """
-                    SELECT 
-                        amount, 
-                        payment_method, 
-                        payment_date, 
-                        reference_number,
-                        created_at
-                    FROM customer_payments 
-                    WHERE invoice_id = (SELECT id FROM invoices WHERE invoice_number = ?)
-                    ORDER BY payment_date, created_at 
-                """
-                payments = db.fetchall(query, (invoice_number,))
-                
-                if payments:
-                    # Convert payment info to proper format for the new invoice generator
-                    payment_list = []
-                    for payment in payments:
-                        amount = payment[0] if payment[0] is not None else 0
-                        method = payment[1] if payment[1] is not None else "Unknown"
-                        date = payment[2] if payment[2] is not None else "Unknown date"
-                        reference = payment[3] if payment[3] is not None else ""
-                        timestamp = payment[4] if len(payment) > 4 and payment[4] is not None else ""
-                        
-                        payment_list.append({
-                            'amount': amount,
-                            'method': method,
-                            'date': date,
-                            'reference': reference,
-                            'time': '',  # Will use default time if not provided
-                            'depositor': 'Customer'  # Default depositor
-                        })
-                    
-                    # Add payment history to invoice data
-                    invoice_data["payment"]["payments"] = payment_list
-            
-            # Generate invoice with exact PDF template matching
+            # Generate the invoice
+            from utils.pdf_invoice_generator import generate_invoice
             generate_invoice(invoice_data, save_path)
             
-            # Update file_path in the invoices table
+            # Update the invoice record with the file path
             db.execute("""
-                UPDATE invoices
-                SET file_path = ?
+                UPDATE invoices 
+                SET file_path = ? 
                 WHERE invoice_number = ?
             """, (save_path, invoice_number))
+            
             db.commit()
             
-            # Ask if user wants to open the invoice
-            if messagebox.askyesno("Invoice Generated", 
-                                 f"Invoice generated successfully: {file_name}\n\nOpen invoice?"):
-                import platform
-                import subprocess
-                
-                # Open PDF with default viewer
-                if platform.system() == 'Windows':
-                    # Use subprocess instead of os.startfile for better cross-platform compatibility
-                    subprocess.call(['start', '', save_path], shell=True)
-                elif platform.system() == 'Darwin':  # macOS
-                    subprocess.call(['open', save_path])
-                else:  # Linux
-                    subprocess.call(['xdg-open', save_path])
+            # Open the generated invoice
+            if os.path.exists(save_path):
+                os.startfile(save_path)
+            else:
+                messagebox.showwarning("Warning", "Invoice was generated but could not be opened automatically.")
                 
         except Exception as e:
-            messagebox.showerror("Invoice Error", f"Failed to generate invoice: {str(e)}")
-            # Log the error for debugging
-            print(f"Invoice error: {str(e)}")
+            db.rollback()
+            print(f"Error generating invoice: {str(e)}")
+            messagebox.showerror("Error", f"Failed to generate invoice: {str(e)}")
     
     def handle_key_event(self, event):
         """Handle keyboard events for navigation"""
@@ -4311,3 +4319,361 @@ class SalesFrame(tk.Frame):
         # Set initial focus to products treeview
         self.current_focus = "products"
         self._update_focus()
+
+    def generate_invoice(self):
+        """Generate invoice for current sale using pre-calculated totals"""
+        try:
+            # Get current date and time
+            current_date = datetime.datetime.now()
+            formatted_date = current_date.strftime("%d-%m-%Y")
+            formatted_time = current_date.strftime("%H:%M")
+            
+            # Get customer details
+            customer_name = self.current_customer.get("name", "Walk-in Customer")
+            customer_phone = self.current_customer.get("phone", "")
+            customer_email = self.current_customer.get("email", "")
+            
+            # Prepare items list with pre-calculated values
+            items = []
+            for item in self.cart_items:
+                items.append({
+                    'name': item['name'],
+                    'quantity': item['quantity'],
+                    'price': float(item['price']),
+                    'discount': float(item.get('discount', 0)),
+                    'total': float(item['total']),
+                    'taxable_value': float(item['taxable_value']),
+                    'tax_amount': float(item['tax_amount']),
+                    'cgst_amount': float(item['cgst_amount']),
+                    'sgst_amount': float(item['sgst_amount']),
+                    'hsn_code': item.get('hsn_code', ''),
+                    'unit': item.get('unit', 'pcs')
+                })
+            
+            # Get the selected date for invoice number and financial year
+            sale_date = self.invoice_date_obj if hasattr(self, 'invoice_date_obj') else datetime.datetime.now()
+            
+            # Calculate financial year based on selected date
+            if sale_date.month >= 4:  # After April 1
+                fy_start = sale_date.year
+                fy_end = sale_date.year + 1
+            else:
+                fy_start = sale_date.year - 1
+                fy_end = sale_date.year
+            
+            # Format as YY-YY (e.g., 24-25)
+            fy_prefix = f"{str(fy_start)[-2:]}-{str(fy_end)[-2:]}"
+            
+            # Get store name for invoice number prefix
+            store_name = "AGT"  # Default prefix
+            store_info = self.controller.db.fetchone("SELECT value FROM settings WHERE key = 'invoice_prefix'")
+            if store_info and store_info[0] and store_info[0].strip():
+                store_name = store_info[0].strip()
+            
+            # Get next invoice number
+            invoice_prefix = f"{fy_prefix}/{store_name}-"
+            
+            # Get last invoice number
+            last_invoice = self.controller.db.fetchone("""
+                SELECT invoice_number FROM sales
+                WHERE invoice_number LIKE ?
+                ORDER BY id DESC LIMIT 1
+            """, (f"{fy_prefix}/%",))
+            
+            # Calculate next number
+            last_num = 0
+            if last_invoice:
+                try:
+                    last_part = last_invoice[0].split('-')[-1]
+                    last_num = int(last_part)
+                except (ValueError, IndexError, TypeError) as e:
+                    print(f"Error parsing invoice number: {e}")
+            
+            # Next invoice number
+            invoice_num = last_num + 1
+            invoice_number = f"{fy_prefix}/{store_name}-{invoice_num:03d}"
+            
+            # Create invoice data dictionary using pre-calculated totals
+            invoice_data = {
+                'invoice_number': invoice_number,
+                'date': formatted_date,
+                'time': formatted_time,
+                'customer': {
+                    'name': customer_name,
+                    'phone': customer_phone,
+                    'email': customer_email
+                },
+                'items': items,
+                'payment': {
+                    'subtotal': float(self.original_total),  # Use pre-calculated total
+                    'discount': float(self.discount_amount) if hasattr(self, 'discount_amount') else 0.0,
+                    'taxable_value': float(self.taxable_value),  # Use pre-calculated taxable value
+                    'cgst': float(self.cgst_amount),  # Use pre-calculated CGST
+                    'sgst': float(self.sgst_amount),  # Use pre-calculated SGST
+                    'total': float(self.rounded_total),  # Use pre-calculated rounded total
+                    'method': 'Cash',  # Default payment method
+                    'status': 'PAID'
+                }
+            }
+            
+            # Generate PDF with invoice number in filename
+            pdf_filename = f"invoice_{invoice_number.replace('/', '-')}.pdf"
+            save_path = os.path.join("data", "invoices", pdf_filename)
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            
+            # Generate the invoice using the invoice generator
+            from utils.pdf_invoice_generator import generate_invoice
+            generate_invoice(invoice_data, save_path)
+            
+            # Save to sales history with pre-calculated values
+            self.save_to_sales_history(
+                invoice_number=invoice_number,
+                date=formatted_date,
+                customer_name=customer_name,
+                customer_phone=customer_phone,
+                customer_email=customer_email,
+                items=items,
+                subtotal=float(self.original_total),
+                tax_amount=float(self.total_tax),
+                total=float(self.rounded_total)
+            )
+            
+            # Clear cart after successful generation
+            self.clear_cart()
+            messagebox.showinfo("Success", "Invoice generated successfully!")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate invoice: {str(e)}")
+            print(f"Invoice generation error: {str(e)}")  # Log the error for debugging
+
+    def save_to_sales_history(self, invoice_number, date, customer_name, customer_phone, customer_email, items, subtotal, tax_amount, total):
+        """Save sale to history"""
+        try:
+            # Create sales history directory if it doesn't exist
+            os.makedirs('data/sales_history', exist_ok=True)
+            
+            # Create history entry
+            history_entry = {
+                'invoice_number': invoice_number,
+                'date': date,  # Store the formatted date
+                'customer': {
+                    'name': customer_name,
+                    'phone': customer_phone,
+                    'email': customer_email
+                },
+                'items': items,
+                'subtotal': subtotal,
+                'tax_amount': tax_amount,
+                'total': total
+            }
+            
+            # Save to JSON file
+            history_file = f'data/sales_history/{invoice_number}.json'
+            with open(history_file, 'w') as f:
+                json.dump(history_entry, f, indent=4)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save sales history: {str(e)}")
+
+class DatePickerDialog:
+    def __init__(self, parent=None, title="Select Date", firstweekday=6, startdate=None, bootstyle="primary"):
+        # Safe locale setup
+        try:
+            locale.setlocale(locale.LC_TIME, "")
+        except locale.Error:
+            pass
+
+        self.parent = parent
+        self.root = ttk.Toplevel(
+            title=title,
+            transient=self.parent,
+            resizable=(False, False),
+            topmost=True,
+            minsize=(226, 1)
+        )
+        self.firstweekday = firstweekday
+        self.startdate = startdate or datetime.datetime.now().date()
+        self.bootstyle = bootstyle
+
+        self.date_selected = self.startdate
+        self.date = startdate or self.date_selected
+        self.calendar = calendar.Calendar(firstweekday=firstweekday)
+
+        self.titlevar = ttk.StringVar()
+        self.datevar = ttk.IntVar()
+
+        self._setup_calendar()
+        self.root.grab_set()
+        self.root.wait_window()
+
+    def _setup_calendar(self):
+        # Create the widget containers
+        self.frm_calendar = ttk.Frame(master=self.root, padding=0, borderwidth=0, relief=FLAT)
+        self.frm_calendar.pack(fill=BOTH, expand=YES)
+        self.frm_title = ttk.Frame(self.frm_calendar, padding=(3, 3))
+        self.frm_title.pack(fill=X)
+        self.frm_header = ttk.Frame(self.frm_calendar, bootstyle=SECONDARY)
+        self.frm_header.pack(fill=X)
+
+        # Create visual components
+        self._draw_titlebar()
+        self._draw_calendar()
+
+        # Center the window
+        self.root.update_idletasks()
+        x = self.parent.winfo_x() + (self.parent.winfo_width() // 2) - (self.root.winfo_width() // 2)
+        y = self.parent.winfo_y() + (self.parent.winfo_height() // 2) - (self.root.winfo_height() // 2)
+        self.root.geometry(f"+{x}+{y}")
+
+    def _update_widget_bootstyle(self):
+        self.frm_title.configure(bootstyle=self.bootstyle)
+        self.title.configure(bootstyle=f"{self.bootstyle}-inverse")
+        self.prev_period.configure(style=f"Chevron.{self.bootstyle}.TButton")
+        self.next_period.configure(style=f"Chevron.{self.bootstyle}.TButton")
+
+    def _draw_calendar(self):
+        self._update_widget_bootstyle()
+        self._set_title()
+        self._current_month_days()
+        self.frm_dates = ttk.Frame(self.frm_calendar)
+        self.frm_dates.pack(fill=BOTH, expand=YES)
+
+        for row, weekday_list in enumerate(self.monthdays):
+            for col, day in enumerate(weekday_list):
+                self.frm_dates.columnconfigure(col, weight=1)
+                if day == 0:
+                    ttk.Label(
+                        master=self.frm_dates,
+                        text=self.monthdates[row][col].day,
+                        anchor=CENTER,
+                        padding=5,
+                        bootstyle=SECONDARY
+                    ).grid(row=row, column=col, sticky=NSEW)
+                else:
+                    if all([
+                        day == self.date_selected.day,
+                        self.date.month == self.date_selected.month,
+                        self.date.year == self.date_selected.year
+                    ]):
+                        day_style = "secondary-toolbutton"
+                    else:
+                        day_style = f"{self.bootstyle}-calendar"
+
+                    def selected(x=row, y=col):
+                        self._on_date_selected(x, y)
+
+                    btn = ttk.Radiobutton(
+                        master=self.frm_dates,
+                        variable=self.datevar,
+                        value=day,
+                        text=day,
+                        bootstyle=day_style,
+                        padding=5,
+                        command=selected
+                    )
+                    btn.grid(row=row, column=col, sticky=NSEW)
+
+    def _draw_titlebar(self):
+        self.prev_period = ttk.Button(
+            master=self.frm_title,
+            text="«",
+            command=self.on_prev_month,
+            style=f"Chevron.{self.bootstyle}.TButton"
+        )
+        self.prev_period.pack(side=LEFT)
+
+        self.title = ttk.Label(
+            master=self.frm_title,
+            textvariable=self.titlevar,
+            anchor=CENTER,
+            font=FONTS["regular_bold"]
+        )
+        self.title.pack(side=LEFT, fill=X, expand=YES)
+
+        self.next_period = ttk.Button(
+            master=self.frm_title,
+            text="»",
+            command=self.on_next_month,
+            style=f"Chevron.{self.bootstyle}.TButton"
+        )
+        self.next_period.pack(side=LEFT)
+
+        # Bind year navigation
+        self.prev_period.bind("<Button-3>", self.on_prev_year, "+")
+        self.next_period.bind("<Button-3>", self.on_next_year, "+")
+        self.title.bind("<Button-1>", self.on_reset_date)
+
+        # Create weekday headers
+        weekdays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+        header = weekdays[self.firstweekday:] + weekdays[:self.firstweekday]
+        for col in header:
+            ttk.Label(
+                master=self.frm_header,
+                text=col,
+                anchor=CENTER,
+                padding=5,
+                bootstyle=(SECONDARY, INVERSE)
+            ).pack(side=LEFT, fill=X, expand=YES)
+
+    def _set_title(self):
+        _titledate = f'{self.date.strftime("%B %Y")}'
+        self.titlevar.set(value=_titledate.capitalize())
+
+    def _current_month_days(self):
+        self.monthdays = self.calendar.monthdayscalendar(
+            year=self.date.year, month=self.date.month
+        )
+        self.monthdates = self.calendar.monthdatescalendar(
+            year=self.date.year, month=self.date.month
+        )
+
+    def _on_date_selected(self, row, col):
+        self.date_selected = self.monthdates[row][col]
+        self.root.destroy()
+
+    def _selection_callback(func):
+        def inner(self, *args):
+            func(self, *args)
+            self.frm_dates.destroy()
+            self._draw_calendar()
+        return inner
+
+    @_selection_callback
+    def on_next_month(self):
+        year, month = self._nextmonth(self.date.year, self.date.month)
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_next_year(self, *_):
+        year = self.date.year + 1
+        month = self.date.month
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_prev_month(self):
+        year, month = self._prevmonth(self.date.year, self.date.month)
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_prev_year(self, *_):
+        year = self.date.year - 1
+        month = self.date.month
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_reset_date(self, *_):
+        self.date = self.startdate
+
+    @staticmethod
+    def _nextmonth(year, month):
+        if month == 12:
+            return year + 1, 1
+        else:
+            return year, month + 1
+
+    @staticmethod
+    def _prevmonth(year, month):
+        if month == 1:
+            return year - 1, 12
+        else:
+            return year, month - 1

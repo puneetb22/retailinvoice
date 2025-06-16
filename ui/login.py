@@ -130,6 +130,12 @@ class AutoLoginFrame(tk.Frame):
             elif self.progress["value"] < 80:
                 self.login_msg.config(text="Preparing dashboard...")
             else:
+                # Set user information in controller
+                self.controller.current_user = {
+                    "id": 1,
+                    "name": "Shopkeeper",
+                    "role": "admin"
+                }
                 self.login_msg.config(text="Welcome, Shopkeeper!")
                 
             # Continue animation (300ms per increment for ~15 seconds total)

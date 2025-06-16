@@ -1,0 +1,21 @@
+{
+    "shop_name": "Baliraja Krushi Kendra",
+    "shop_address": "Main Road, Maharashtra",
+    "shop_phone": "+91 1234567890",
+    "shop_gst": "27AABCU9603R1ZX",
+    "invoice_prefix": "AGT",
+    "invoice_template": "default",
+    "low_stock_threshold": 10,
+    "version": "1.0.0",
+    "shop_email": "",
+    "state_name": "",
+    "state_code": "",
+    "shop_laid_no": "",
+    "shop_lcsd_no": "",
+    "shop_lfrd_no": "",
+    "laid_no": "",
+    "lcsd_no": "",
+    "lfrd_no": "",
+    "terms_conditions": "Goods once sold cannot be returned. Payment due within 30 days.",
+    "app_theme": "light"
+}

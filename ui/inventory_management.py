@@ -49,6 +49,7 @@ class InventoryManagementFrame(tk.Frame):
         # Create tabs
         self.products_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
         self.inventory_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
+        self.stock_entry_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])  # New tab
         self.batches_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
         self.alerts_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
         self.categories_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
@@ -57,6 +58,7 @@ class InventoryManagementFrame(tk.Frame):
 
         self.notebook.add(self.products_tab, text="Products")
         self.notebook.add(self.inventory_tab, text="Stock Levels")
+        self.notebook.add(self.stock_entry_tab, text="Stock Entry")  # Add new tab
         self.notebook.add(self.batches_tab, text="Batch Management")
         self.notebook.add(self.alerts_tab, text="Alerts & Expiry")
         self.notebook.add(self.categories_tab, text="Categories")
@@ -67,8 +69,9 @@ class InventoryManagementFrame(tk.Frame):
         from utils.helpers import make_button_keyboard_navigable
         
         # Setup tabs
-        self.setup_products_tab()  # Add the new tab
+        self.setup_products_tab()
         self.setup_inventory_tab()
+        self.setup_stock_entry_tab()  # Setup new tab
         self.setup_batches_tab()
         self.setup_alerts_tab()
         self.setup_categories_tab()
@@ -78,6 +81,8 @@ class InventoryManagementFrame(tk.Frame):
         # Set active tab if specified
         if self.active_tab == "products":
             self.notebook.select(0)  # Products is the first tab
+        elif self.active_tab == "stock_entry":
+            self.notebook.select(2)  # Stock Entry is the third tab
 
     def setup_products_tab(self):
         """Setup the products tab with product management functionality"""
@@ -1685,6 +1690,349 @@ class InventoryManagementFrame(tk.Frame):
         self.hsn_id_var = None
         self.hsn_mode = "add"  # 'add' or 'edit'
 
+    def setup_stock_entry_tab(self):
+        """Setup the stock entry tab for adding new stock"""
+        # Create main frame for stock entry tab
+        self.stock_entry_tab = tk.Frame(self.notebook, bg=COLORS["bg_primary"])
+        self.notebook.add(self.stock_entry_tab, text="Stock Entry")
+        
+        # Create header
+        header_frame = tk.Frame(self.stock_entry_tab, bg=COLORS["primary"])
+        header_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        header_label = tk.Label(header_frame, 
+                              text="Add New Stock Entry",
+                              font=FONTS["heading"],  # Changed from "header" to "heading"
+                              bg=COLORS["primary"],
+                              fg=COLORS["text_white"])
+        header_label.pack(pady=10)
+        
+        # Create split view
+        content_frame = tk.Frame(self.stock_entry_tab, bg=COLORS["bg_primary"])
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Left side - Entry form
+        form_frame = tk.Frame(content_frame, bg=COLORS["bg_primary"])
+        form_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        
+        # Product selection
+        product_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
+        product_frame.pack(fill=tk.X, pady=5)
+        
+        product_label = tk.Label(product_frame, 
+                               text="Select Product:",
+                               font=FONTS["regular"],
+                               bg=COLORS["bg_primary"],
+                               fg=COLORS["text_primary"])
+        product_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Create a frame for the combobox and refresh button
+        dropdown_frame = tk.Frame(product_frame, bg=COLORS["bg_primary"])
+        dropdown_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        self.stock_product_var = tk.StringVar()
+        self.stock_product_dropdown = ttk.Combobox(dropdown_frame, 
+                                                 textvariable=self.stock_product_var,
+                                                 font=FONTS["regular"],
+                                                 width=40,
+                                                 state="readonly")
+        self.stock_product_dropdown.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Add refresh button
+        refresh_btn = tk.Button(dropdown_frame,
+                              text="↻",
+                              font=FONTS["regular"],
+                              bg=COLORS["secondary"],
+                              fg=COLORS["text_white"],
+                              width=3,
+                              cursor="hand2",
+                              command=self.load_products_for_stock_entry)
+        refresh_btn.pack(side=tk.LEFT, padx=(5, 0))
+        
+        # Bind events
+        self.stock_product_dropdown.bind("<<ComboboxSelected>>", self.on_stock_product_select)
+        self.stock_product_dropdown.bind("<FocusIn>", lambda e: self.stock_product_dropdown.event_generate('<Down>'))
+        
+        # Load products initially
+        self.load_products_for_stock_entry()
+        
+        # ... rest of the existing setup code ...
+
+        # Right side - Recent entries
+        entries_frame = tk.Frame(content_frame, bg=COLORS["bg_primary"], width=600)
+        entries_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
+
+        # Recent entries title
+        entries_title = tk.Label(entries_frame, 
+                               text="Recent Stock Entries",
+                               font=FONTS["subheading"],
+                               bg=COLORS["bg_primary"],
+                               fg=COLORS["text_primary"])
+        entries_title.pack(pady=(0, 10))
+
+        # Treeview for recent entries
+        tree_frame = tk.Frame(entries_frame, bg=COLORS["bg_primary"])
+        tree_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(tree_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Create treeview and assign to self.stock_entries_tree
+        self.stock_entries_tree = ttk.Treeview(tree_frame, 
+                                             columns=("Date", "Product", "Batch", "Qty", "MFG Date", "Expiry", "Price"),
+                                             show="headings",
+                                             yscrollcommand=scrollbar.set)
+
+        # Configure scrollbar
+        scrollbar.config(command=self.stock_entries_tree.yview)
+
+        # Define columns
+        self.stock_entries_tree.heading("Date", text="Entry Date")
+        self.stock_entries_tree.heading("Product", text="Product Name")
+        self.stock_entries_tree.heading("Batch", text="Batch Number")
+        self.stock_entries_tree.heading("Qty", text="Quantity")
+        self.stock_entries_tree.heading("MFG Date", text="MFG Date")
+        self.stock_entries_tree.heading("Expiry", text="Expiry Date")
+        self.stock_entries_tree.heading("Price", text="Purchase Price")
+
+        # Set column widths
+        self.stock_entries_tree.column("Date", width=100)
+        self.stock_entries_tree.column("Product", width=200)
+        self.stock_entries_tree.column("Batch", width=100)
+        self.stock_entries_tree.column("Qty", width=80)
+        self.stock_entries_tree.column("MFG Date", width=100)
+        self.stock_entries_tree.column("Expiry", width=100)
+        self.stock_entries_tree.column("Price", width=100)
+
+        self.stock_entries_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Load initial data
+        self.load_stock_entries()
+        self.load_products_for_stock_entry()
+        # ... rest of the existing setup code ...
+
+    def load_products_for_stock_entry(self):
+        """Load products into the stock entry dropdown"""
+        try:
+            # Get products from database using proper query
+            query = """
+                SELECT id, product_code, name, wholesale_price 
+                FROM products 
+                ORDER BY name
+            """
+            # Use fetchall directly from the database wrapper
+            products = self.controller.db.fetchall(query)
+            
+            if not products:
+                # Only show warning if explicitly loading products (not during initial tab load)
+                if hasattr(self, '_is_initial_load') and not self._is_initial_load:
+                    messagebox.showwarning("Warning", "No products found. Please add products first.")
+                print("No products found in database")  # Log instead of showing message
+                return
+            
+            # Format for display: "Product Name (Code) - ₹Price"
+            self.stock_product_dropdown['values'] = [
+                f"{p[2]} ({p[1]}) - ₹{p[3]:.2f}" for p in products
+            ]
+            
+            # Store product IDs and details for reference
+            self.stock_product_ids = {
+                f"{p[2]} ({p[1]}) - ₹{p[3]:.2f}": {
+                    'id': p[0],
+                    'name': p[2],
+                    'code': p[1],
+                    'wholesale_price': p[3]
+                } for p in products
+            }
+            
+            # Set default value to first product if dropdown is empty
+            if not self.stock_product_var.get() and self.stock_product_dropdown['values']:
+                self.stock_product_var.set(self.stock_product_dropdown['values'][0])
+                self.on_stock_product_select()
+            
+        except Exception as e:
+            # Log error instead of showing message box during initial load
+            print(f"Error loading products: {str(e)}")  # Log to console
+            if hasattr(self, '_is_initial_load') and not self._is_initial_load:
+                messagebox.showerror("Error", f"Failed to load products: {str(e)}")
+
+    def on_stock_product_select(self, event=None):
+        """Handle product selection in stock entry form"""
+        selected = self.stock_product_var.get()
+        if not selected or selected not in self.stock_product_ids:
+            return
+            
+        try:
+            product_details = self.stock_product_ids[selected]
+            
+            # Set default purchase price to wholesale price
+            if not self.purchase_price_var.get():
+                self.purchase_price_var.set(f"{product_details['wholesale_price']:.2f}")
+            
+            # Generate a default batch number if not set
+            if not self.batch_number_var.get():
+                # Format: CODE-YYYYMMDD-XXX
+                date_str = datetime.datetime.now().strftime("%Y%m%d")
+                random_suffix = random.randint(100, 999)
+                self.batch_number_var.set(f"{product_details['code']}-{date_str}-{random_suffix}")
+            
+            # Set focus to quantity field
+            for widget in self.stock_entry_tab.winfo_children():
+                if isinstance(widget, tk.Frame):
+                    for child in widget.winfo_children():
+                        if isinstance(child, tk.Frame):
+                            for grandchild in child.winfo_children():
+                                if isinstance(grandchild, tk.Entry) and grandchild.winfo_name() == "!entry3":  # Quantity entry
+                                    grandchild.focus_set()
+                                    break
+        except Exception as e:
+            messagebox.showerror("Error", f"Error handling product selection: {str(e)}")
+
+    def save_stock_entry(self):
+        """Save a new stock entry"""
+        try:
+            # Validate required fields
+            if not self.stock_product_var.get():
+                messagebox.showerror("Error", "Please select a product")
+                return
+                
+            if not self.quantity_var.get():
+                messagebox.showerror("Error", "Please enter quantity")
+                return
+                
+            # Get product ID
+            selected = self.stock_product_var.get()
+            if selected not in self.stock_product_ids:
+                messagebox.showerror("Error", "Invalid product selection")
+                return
+                
+            product_id = self.stock_product_ids[selected]['id']
+            
+            # Parse and validate quantity
+            try:
+                quantity = int(self.quantity_var.get())
+                if quantity <= 0:
+                    raise ValueError("Quantity must be positive")
+            except ValueError as e:
+                messagebox.showerror("Error", f"Invalid quantity: {str(e)}")
+                return
+                
+            # Parse and validate dates
+            try:
+                mfg_date = datetime.datetime.strptime(self.mfg_date_var.get(), "%Y-%m-%d").date()
+                expiry_date = None
+                if self.expiry_date_var.get():
+                    expiry_date = datetime.datetime.strptime(self.expiry_date_var.get(), "%Y-%m-%d").date()
+            except ValueError:
+                messagebox.showerror("Error", "Invalid date format. Use YYYY-MM-DD")
+                return
+                
+            # Parse and validate purchase price
+            try:
+                purchase_price = float(self.purchase_price_var.get()) if self.purchase_price_var.get() else 0.0
+                if purchase_price < 0:
+                    raise ValueError("Price cannot be negative")
+            except ValueError as e:
+                messagebox.showerror("Error", f"Invalid purchase price: {str(e)}")
+                return
+                
+            # Get batch number
+            batch_number = self.batch_number_var.get() or f"BATCH{random.randint(1000, 9999)}"
+            
+            # Save to database
+            cursor = self.controller.db.cursor()
+            cursor.execute("""
+                INSERT INTO batches (
+                    product_id, batch_number, quantity, 
+                    manufacturing_date, expiry_date, purchase_price,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            """, (
+                product_id, batch_number, quantity,
+                mfg_date, expiry_date, purchase_price
+            ))
+            
+            self.controller.db.commit()
+            
+            # Refresh the entries list
+            self.load_stock_entries()
+            
+            # Clear the form
+            self.clear_stock_entry_form()
+            
+            messagebox.showinfo("Success", "Stock entry saved successfully")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save stock entry: {str(e)}")
+
+    def clear_stock_entry_form(self):
+        """Clear all fields in the stock entry form"""
+        self.stock_product_var.set('')
+        self.batch_number_var.set('')
+        self.quantity_var.set('')
+        self.mfg_date_var.set(datetime.datetime.now().strftime("%Y-%m-%d"))
+        self.expiry_date_var.set('')
+        self.purchase_price_var.set('')
+
+    def load_stock_entries(self):
+        """Load recent stock entries into the treeview"""
+        try:
+            # Clear existing items
+            for item in self.stock_entries_tree.get_children():
+                self.stock_entries_tree.delete(item)
+
+            entries = self.controller.db.fetchall("""
+                SELECT 
+                    b.created_at,
+                    p.name,
+                    b.batch_number,
+                    b.quantity,
+                    b.manufacturing_date,
+                    b.expiry_date,
+                    p.wholesale_price
+                FROM batches b
+                JOIN products p ON b.product_id = p.id
+                ORDER BY b.created_at DESC
+                LIMIT 100
+            """)
+
+            for entry in entries:
+                # Format dates
+                created_at = datetime.datetime.strptime(entry[0], "%Y-%m-%d %H:%M:%S").strftime("%d/%m/%Y")
+                mfg_date = entry[4].strftime("%d/%m/%Y") if entry[4] else ""
+                expiry_date = entry[5].strftime("%d/%m/%Y") if entry[5] else ""
+
+                # Format price
+                price = f"₹{entry[6]:.2f}" if entry[6] else ""
+
+                self.stock_entries_tree.insert("", "end", values=(
+                    created_at,
+                    entry[1],  # Product name
+                    entry[2],  # Batch number
+                    entry[3],  # Quantity
+                    mfg_date,
+                    expiry_date,
+                    price
+                ))
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load stock entries: {str(e)}")
+
+    def on_show(self):
+        """Called when frame is shown"""
+        # Load data for all tabs
+        self.load_products()  # Load products first
+        self.load_inventory()
+        self.load_product_dropdown()  # Load products for batch filtering
+        self.load_batches(show_all=True)
+        self.load_alerts()
+        self.load_categories()
+        self.load_vendors()
+        self.load_hsn_codes()
+        self.load_stock_entries()  # Load stock entries
+        self.load_products_for_stock_entry()  # Load products for stock entry
+
     # Category management functions
     def load_categories(self):
         """Load categories from database"""
@@ -3099,14 +3447,3 @@ class InventoryManagementFrame(tk.Frame):
         result = self.controller.db.fetchall(query)
         return [code[0] for code in result] if result else []
     
-    def on_show(self):
-        """Called when frame is shown"""
-        # Load data for all tabs
-        self.load_products()  # Load products first
-        self.load_inventory()
-        self.load_product_dropdown()  # Load products for batch filtering
-        self.load_batches(show_all=True)
-        self.load_alerts()
-        self.load_categories()
-        self.load_vendors()
-        self.load_hsn_codes()

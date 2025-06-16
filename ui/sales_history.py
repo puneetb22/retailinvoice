@@ -7,10 +7,217 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import datetime
 import subprocess
+import calendar
+import locale
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 
 # Import global styles and formatting utils
 from assets.styles import COLORS, FONTS
 from utils.helpers import format_currency, parse_date, format_date
+
+class DatePickerDialog:
+    def __init__(self, parent=None, title="Select Date", firstweekday=6, startdate=None, bootstyle="primary"):
+        # Safe locale setup
+        try:
+            locale.setlocale(locale.LC_TIME, "")
+        except locale.Error:
+            pass
+
+        self.parent = parent
+        self.root = ttk.Toplevel(
+            title=title,
+            transient=self.parent,
+            resizable=(False, False),
+            topmost=True,
+            minsize=(226, 1)
+        )
+        self.firstweekday = firstweekday
+        self.startdate = startdate or datetime.datetime.now().date()
+        self.bootstyle = bootstyle
+
+        self.date_selected = self.startdate
+        self.date = startdate or self.date_selected
+        self.calendar = calendar.Calendar(firstweekday=firstweekday)
+
+        self.titlevar = ttk.StringVar()
+        self.datevar = ttk.IntVar()
+
+        self._setup_calendar()
+        self.root.grab_set()
+        self.root.wait_window()
+
+    def _setup_calendar(self):
+        # Create the widget containers
+        self.frm_calendar = ttk.Frame(master=self.root, padding=0, borderwidth=0, relief=FLAT)
+        self.frm_calendar.pack(fill=BOTH, expand=YES)
+        self.frm_title = ttk.Frame(self.frm_calendar, padding=(3, 3))
+        self.frm_title.pack(fill=X)
+        self.frm_header = ttk.Frame(self.frm_calendar, bootstyle=SECONDARY)
+        self.frm_header.pack(fill=X)
+
+        # Create visual components
+        self._draw_titlebar()
+        self._draw_calendar()
+
+        # Center the window
+        self.root.update_idletasks()
+        x = self.parent.winfo_x() + (self.parent.winfo_width() // 2) - (self.root.winfo_width() // 2)
+        y = self.parent.winfo_y() + (self.parent.winfo_height() // 2) - (self.root.winfo_height() // 2)
+        self.root.geometry(f"+{x}+{y}")
+
+    def _update_widget_bootstyle(self):
+        self.frm_title.configure(bootstyle=self.bootstyle)
+        self.title.configure(bootstyle=f"{self.bootstyle}-inverse")
+        self.prev_period.configure(style=f"Chevron.{self.bootstyle}.TButton")
+        self.next_period.configure(style=f"Chevron.{self.bootstyle}.TButton")
+
+    def _draw_calendar(self):
+        self._update_widget_bootstyle()
+        self._set_title()
+        self._current_month_days()
+        self.frm_dates = ttk.Frame(self.frm_calendar)
+        self.frm_dates.pack(fill=BOTH, expand=YES)
+
+        for row, weekday_list in enumerate(self.monthdays):
+            for col, day in enumerate(weekday_list):
+                self.frm_dates.columnconfigure(col, weight=1)
+                if day == 0:
+                    ttk.Label(
+                        master=self.frm_dates,
+                        text=self.monthdates[row][col].day,
+                        anchor=CENTER,
+                        padding=5,
+                        bootstyle=SECONDARY
+                    ).grid(row=row, column=col, sticky=NSEW)
+                else:
+                    if all([
+                        day == self.date_selected.day,
+                        self.date.month == self.date_selected.month,
+                        self.date.year == self.date_selected.year
+                    ]):
+                        day_style = "secondary-toolbutton"
+                    else:
+                        day_style = f"{self.bootstyle}-calendar"
+
+                    def selected(x=row, y=col):
+                        self._on_date_selected(x, y)
+
+                    btn = ttk.Radiobutton(
+                        master=self.frm_dates,
+                        variable=self.datevar,
+                        value=day,
+                        text=day,
+                        bootstyle=day_style,
+                        padding=5,
+                        command=selected
+                    )
+                    btn.grid(row=row, column=col, sticky=NSEW)
+
+    def _draw_titlebar(self):
+        self.prev_period = ttk.Button(
+            master=self.frm_title,
+            text="«",
+            command=self.on_prev_month,
+            style=f"Chevron.{self.bootstyle}.TButton"
+        )
+        self.prev_period.pack(side=LEFT)
+
+        self.title = ttk.Label(
+            master=self.frm_title,
+            textvariable=self.titlevar,
+            anchor=CENTER,
+            font=FONTS["regular_bold"]
+        )
+        self.title.pack(side=LEFT, fill=X, expand=YES)
+
+        self.next_period = ttk.Button(
+            master=self.frm_title,
+            text="»",
+            command=self.on_next_month,
+            style=f"Chevron.{self.bootstyle}.TButton"
+        )
+        self.next_period.pack(side=LEFT)
+
+        # Bind year navigation
+        self.prev_period.bind("<Button-3>", self.on_prev_year, "+")
+        self.next_period.bind("<Button-3>", self.on_next_year, "+")
+        self.title.bind("<Button-1>", self.on_reset_date)
+
+        # Create weekday headers
+        weekdays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+        header = weekdays[self.firstweekday:] + weekdays[:self.firstweekday]
+        for col in header:
+            ttk.Label(
+                master=self.frm_header,
+                text=col,
+                anchor=CENTER,
+                padding=5,
+                bootstyle=(SECONDARY, INVERSE)
+            ).pack(side=LEFT, fill=X, expand=YES)
+
+    def _set_title(self):
+        _titledate = f'{self.date.strftime("%B %Y")}'
+        self.titlevar.set(value=_titledate.capitalize())
+
+    def _current_month_days(self):
+        self.monthdays = self.calendar.monthdayscalendar(
+            year=self.date.year, month=self.date.month
+        )
+        self.monthdates = self.calendar.monthdatescalendar(
+            year=self.date.year, month=self.date.month
+        )
+
+    def _on_date_selected(self, row, col):
+        self.date_selected = self.monthdates[row][col]
+        self.root.destroy()
+
+    def _selection_callback(func):
+        def inner(self, *args):
+            func(self, *args)
+            self.frm_dates.destroy()
+            self._draw_calendar()
+        return inner
+
+    @_selection_callback
+    def on_next_month(self):
+        year, month = self._nextmonth(self.date.year, self.date.month)
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_next_year(self, *_):
+        year = self.date.year + 1
+        month = self.date.month
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_prev_month(self):
+        year, month = self._prevmonth(self.date.year, self.date.month)
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_prev_year(self, *_):
+        year = self.date.year - 1
+        month = self.date.month
+        self.date = datetime.datetime(year=year, month=month, day=1).date()
+
+    @_selection_callback
+    def on_reset_date(self, *_):
+        self.date = self.startdate
+
+    @staticmethod
+    def _nextmonth(year, month):
+        if month == 12:
+            return year + 1, 1
+        else:
+            return year, month + 1
+
+    @staticmethod
+    def _prevmonth(year, month):
+        if month == 1:
+            return year - 1, 12
+        else:
+            return year, month - 1
 
 class SalesHistoryFrame(tk.Frame):
     """Sales history frame for viewing and reprinting invoices"""
@@ -21,6 +228,9 @@ class SalesHistoryFrame(tk.Frame):
         self.current_invoice_id = None
         self.controller = controller
         self.selected_date = datetime.date.today()
+        
+        # Initialize date variables
+        self.date_var = tk.StringVar(value=self.selected_date.strftime("%d/%m/%Y"))
         
         self.create_widgets()
     
@@ -56,89 +266,54 @@ class SalesHistoryFrame(tk.Frame):
             fg=COLORS["text_primary"]
         ).pack(side=tk.LEFT, padx=(0, 10))
         
-        # Create date selection dropdown menus
-        date_controls_frame = tk.Frame(date_frame, bg=COLORS["bg_primary"])
-        date_controls_frame.pack(side=tk.LEFT, padx=(0, 10))
+        # Create date entry with calendar button
+        date_entry = ttk.Entry(date_frame,
+                             textvariable=self.date_var,
+                             width=12,
+                             font=FONTS["regular"],
+                             style='primary.TEntry')
+        date_entry.pack(side=tk.LEFT)
         
-        # Day dropdown
-        self.day_var = tk.StringVar(value=str(self.selected_date.day).zfill(2))
-        days = [str(day).zfill(2) for day in range(1, 32)]
-        self.day_dropdown = ttk.Combobox(
-            date_controls_frame, 
-            textvariable=self.day_var,
-            values=days,
+        def show_calendar():
+            # Parse current date from DD/MM/YYYY format
+            try:
+                current_date = datetime.datetime.strptime(self.date_var.get(), "%d/%m/%Y").date()
+            except ValueError:
+                current_date = datetime.datetime.now().date()
+                
+            dialog = DatePickerDialog(
+                parent=self,
+                title="Select Date",
+                firstweekday=6,  # Sunday first
+                startdate=current_date,
+                bootstyle="primary"
+            )
+            if hasattr(dialog, 'date_selected'):
+                self.date_var.set(dialog.date_selected.strftime("%d/%m/%Y"))
+                self.selected_date = dialog.date_selected
+                self.load_sales()
+        
+        # Add calendar button
+        cal_button = ttk.Button(date_frame,
+                              text="📅",
+                              style='primary.TButton',
             width=3,
-            state="readonly"
-        )
-        self.day_dropdown.pack(side=tk.LEFT, padx=2)
-        self.day_dropdown.bind("<<ComboboxSelected>>", self.on_date_component_change)
-        
-        tk.Label(
-            date_controls_frame,
-            text="/",
-            font=FONTS["regular_bold"],
-            bg=COLORS["bg_primary"],
-            fg=COLORS["text_primary"]
-        ).pack(side=tk.LEFT)
-        
-        # Month dropdown
-        self.month_var = tk.StringVar(value=str(self.selected_date.month).zfill(2))
-        months = [str(month).zfill(2) for month in range(1, 13)]
-        self.month_dropdown = ttk.Combobox(
-            date_controls_frame, 
-            textvariable=self.month_var,
-            values=months,
-            width=3,
-            state="readonly"
-        )
-        self.month_dropdown.pack(side=tk.LEFT, padx=2)
-        self.month_dropdown.bind("<<ComboboxSelected>>", self.on_date_component_change)
-        
-        tk.Label(
-            date_controls_frame,
-            text="/",
-            font=FONTS["regular_bold"],
-            bg=COLORS["bg_primary"],
-            fg=COLORS["text_primary"]
-        ).pack(side=tk.LEFT)
-        
-        # Year dropdown
-        current_year = datetime.date.today().year
-        self.year_var = tk.StringVar(value=str(self.selected_date.year))
-        years = [str(year) for year in range(current_year - 5, current_year + 1)]
-        self.year_dropdown = ttk.Combobox(
-            date_controls_frame, 
-            textvariable=self.year_var,
-            values=years,
-            width=5,
-            state="readonly"
-        )
-        self.year_dropdown.pack(side=tk.LEFT, padx=2)
-        self.year_dropdown.bind("<<ComboboxSelected>>", self.on_date_component_change)
+                              command=show_calendar)
+        cal_button.pack(side=tk.LEFT, padx=(5, 10))
         
         # Today button
-        today_btn = tk.Button(
+        today_btn = ttk.Button(
             date_frame,
             text="Today",
-            font=FONTS["regular"],
-            bg=COLORS["secondary"],
-            fg=COLORS["text_white"],
-            padx=10,
-            pady=3,
-            cursor="hand2",
+            style='secondary.TButton',
             command=self.select_today
         )
-        today_btn.pack(side=tk.LEFT, padx=(5, 10))
+        today_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        view_button = tk.Button(
+        view_button = ttk.Button(
             date_frame,
             text="View Sales",
-            font=FONTS["regular_bold"],
-            bg=COLORS["primary"],
-            fg=COLORS["text_white"],
-            padx=15,
-            pady=5,
-            cursor="hand2",
+            style='primary.TButton',
             command=self.load_sales
         )
         view_button.pack(side=tk.LEFT)
@@ -560,45 +735,10 @@ class SalesHistoryFrame(tk.Frame):
         )
         self.collect_payment_btn.pack(side=tk.LEFT)
     
-    def on_date_component_change(self, event=None):
-        """Handle date component (day, month, year) change"""
-        try:
-            day = int(self.day_var.get())
-            month = int(self.month_var.get())
-            year = int(self.year_var.get())
-            
-            # Validate the date
-            # Handle month with less than 31 days
-            max_day = 31
-            if month in [4, 6, 9, 11]:  # Apr, Jun, Sep, Nov have 30 days
-                max_day = 30
-            elif month == 2:  # February has 28 or 29 days
-                if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0):  # Leap year
-                    max_day = 29
-                else:
-                    max_day = 28
-            
-            # Adjust day if needed
-            if day > max_day:
-                day = max_day
-                self.day_var.set(str(day).zfill(2))
-            
-            self.selected_date = datetime.date(year, month, day)
-            self.load_sales()
-        except ValueError:
-            # Reset to today if invalid date
-            today = datetime.date.today()
-            self.day_var.set(str(today.day).zfill(2))
-            self.month_var.set(str(today.month).zfill(2))
-            self.year_var.set(str(today.year))
-            self.selected_date = today
-    
     def select_today(self):
         """Set date to today"""
         today = datetime.date.today()
-        self.day_var.set(str(today.day).zfill(2))
-        self.month_var.set(str(today.month).zfill(2))
-        self.year_var.set(str(today.year))
+        self.date_var.set(today.strftime("%d/%m/%Y"))
         self.selected_date = today
         self.load_sales()
     

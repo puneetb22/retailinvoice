@@ -1,4 +1,3 @@
-
 """
 PDF Invoice Generator for POS system
 Generates invoices matching exactly the shop_bill.pdf template
@@ -247,24 +246,35 @@ def generate_invoice(invoice_data, save_path):
         invoice_number = invoice_data.get('invoice_number', '')
         invoice_id = invoice_data.get('invoice_id', '')
 
-        # Format date
-        date_obj = datetime.datetime.now()
-        try:
-            if 'date' in invoice_data:
-                if isinstance(invoice_data['date'], str):
-                    # Support multiple date formats
-                    try:
-                        date_obj = datetime.datetime.strptime(invoice_data['date'], '%d/%m/%Y')
-                    except ValueError:
-                        try:
-                            date_obj = datetime.datetime.strptime(invoice_data['date'], '%d-%m-%Y')
-                        except ValueError:
-                            pass
-        except:
-            pass
+        # Format date - Use provided date or fallback to current date
+        date_obj = None
+        if 'date' in invoice_data and invoice_data['date']:
+            date_str = invoice_data['date']
+            # Try different date formats
+            date_formats = ['%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d']
+            for date_format in date_formats:
+                try:
+                    date_obj = datetime.datetime.strptime(date_str, date_format)
+                    break
+                except ValueError:
+                    continue
 
+        # Only use current date if no valid date was provided
+        if date_obj is None:
+            date_obj = datetime.datetime.now()
+
+        # Always format the date in DD/MM/YYYY format for consistency
         invoice_date = date_obj.strftime('%d/%m/%Y')
+        # Format time with proper spacing
         invoice_time = invoice_data.get('time', date_obj.strftime('%I:%M %p'))
+        if not invoice_time.startswith(' '):
+            invoice_time = ' ' + invoice_time
+
+        # Print debug information
+        print(f"Debug - Invoice date from data: {invoice_data.get('date')}")
+        print(f"Debug - Parsed date object: {date_obj}")
+        print(f"Debug - Final invoice date: {invoice_date}")
+        print(f"Debug - Final invoice time: {invoice_time}")
 
         # Customer information - Fixed to properly fetch email
         customer_name = customer_data.get('name', 'Walk-in Customer')
@@ -422,7 +432,7 @@ def generate_invoice(invoice_data, save_path):
                 Paragraph(f"Customer name - {customer_name}", styles['CustomerInfo']),
                 Paragraph(f"Contact - {customer_phone}", styles['CustomerInfo']),
                 Paragraph("Date", styles['InvoiceLabel']),
-                Paragraph(f"{invoice_date}{invoice_time}", styles['InvoiceInfoRight'])
+                Paragraph(f"{invoice_date} {invoice_time.strip()}", styles['InvoiceInfoRight'])
             ],
             [
                 Paragraph(f"Add : {customer_address}", styles['CustomerInfo']),
@@ -467,16 +477,16 @@ def generate_invoice(invoice_data, save_path):
         # Calculate column widths for items table based on A4 landscape
         col_widths = [
             doc.width*0.03,   # No
-            doc.width*0.17,   # Description
+            doc.width*0.20,   # Description
             doc.width*0.13,   # Company name
             doc.width*0.07,   # HSN
-            doc.width*0.08,   # Batch
+            doc.width*0.09,   # Batch
             doc.width*0.1,    # Expiry
-            doc.width*0.06,   # Qty
-            doc.width*0.07,   # Unit
+            doc.width*0.04,   # Qty
+            doc.width*0.05,   # Unit
             doc.width*0.09,   # Rate
-            doc.width*0.08,   # Disc
-            doc.width*0.12    # Amount
+            doc.width*0.06,   # Disc
+            doc.width*0.14    # Amount
         ]
 
         # Create items header table
@@ -918,12 +928,12 @@ def generate_invoice(invoice_data, save_path):
 
         # Define column widths to fit properly within page margins
         tax_col_widths = [
-            doc.width*0.20,      # Taxable value
-            doc.width*0.10,      # CGST rate
-            doc.width*0.15,      # CGST amount
-            doc.width*0.10,      # SGST rate
-            doc.width*0.15,      # SGST amount
-            doc.width*0.20       # Total tax (reduced to fit)
+            doc.width*0.12,      # Taxable value
+            doc.width*0.08,      # CGST rate
+            doc.width*0.08,      # CGST amount
+            doc.width*0.08,      # SGST rate
+            doc.width*0.08,      # SGST amount
+            doc.width*0.12       # Total tax (reduced to fit)
         ]
 
         # Combine header and data
