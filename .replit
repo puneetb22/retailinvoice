@@ -5,7 +5,6 @@ channel = "stable-24_05"
 packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "pkg-config", "qhull", "sqlite", "tcl", "tk", "zlib"]
 
 [workflows]
-runButton = "Run POS"
 
 [[workflows.workflow]]
 name = "Project"
