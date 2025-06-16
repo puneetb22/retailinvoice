@@ -958,14 +958,16 @@ class SalesFrame(tk.Frame):
         # Price variable that will be updated based on batch selection
         current_price = [product_price]  # Use list for reference
         
-        # Batch selection (if multiple batches exist)
+        # Batch selection (show for any product with batches)
         selected_batch = [None]  # Use list to store selected batch for access in nested functions
-        if len(batches) > 1:
+        batch_frame = None
+        
+        if len(batches) > 0:
             batch_frame = tk.Frame(content_frame)
             batch_frame.pack(fill=tk.X, pady=5)
             
             tk.Label(batch_frame, 
-                   text="Batch:",
+                   text="Select Batch:",
                    font=FONTS["regular_bold"],
                    width=12,
                    anchor="w").grid(row=0, column=0, sticky="w")
@@ -973,7 +975,7 @@ class SalesFrame(tk.Frame):
             # Create batch options with expiry dates and prices
             batch_options = []
             for batch in batches:
-                expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else ""
+                expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else " (No Expiry)"
                 price_str = f" - ₹{batch['selling_price']:.2f}"
                 batch_options.append(f"{batch['number']}{expiry_str}{price_str} - {batch['quantity']} units")
             
@@ -982,32 +984,41 @@ class SalesFrame(tk.Frame):
                                      textvariable=batch_var,
                                      values=batch_options,
                                      font=FONTS["regular"],
-                                     width=35,
+                                     width=40,
                                      state="readonly")
-            batch_combo.grid(row=0, column=1, sticky="w")
+            batch_combo.grid(row=0, column=1, sticky="w", padx=(5, 0))
             
             # Store selected batch info and update price
-            def on_batch_select(event):
+            def on_batch_select(event=None):
                 selected = batch_var.get()
-                for batch in batches:
-                    expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else ""
+                for i, batch in enumerate(batches):
+                    expiry_str = f" (Exp: {batch['expiry']})" if batch['expiry'] else " (No Expiry)"
                     price_str = f" - ₹{batch['selling_price']:.2f}"
                     if selected.startswith(f"{batch['number']}{expiry_str}{price_str}"):
                         selected_batch[0] = batch
                         current_price[0] = batch['selling_price']
-                        # Update the price display
-                        stock_label.config(text=f"Price: ₹{batch['selling_price']:.2f} | Available: {batch['quantity']}")
+                        # Update the price and stock display for this specific batch
+                        stock_label.config(text=f"Price: ₹{batch['selling_price']:.2f} | Available: {batch['quantity']} units")
                         break
             
             batch_combo.bind("<<ComboboxSelected>>", on_batch_select)
-            # Set initial batch
+            
+            # Set initial batch selection
             if batch_options:
                 selected_batch[0] = batches[0]
                 current_price[0] = batches[0]['selling_price']
-        elif len(batches) == 1:
-            # Only one batch, auto-select it
-            selected_batch[0] = batches[0]
-            current_price[0] = batches[0]['selling_price']
+                # Update initial display with first batch info
+                stock_label.config(text=f"Price: ₹{batches[0]['selling_price']:.2f} | Available: {batches[0]['quantity']} units")
+                
+            # If only one batch, show it but make it clear it's auto-selected
+            if len(batches) == 1:
+                batch_combo.config(state="disabled")
+                # Add a note for single batch
+                note_label = tk.Label(batch_frame, 
+                                    text="(Only one batch available)",
+                                    font=FONTS["small"],
+                                    fg=COLORS["text_secondary"])
+                note_label.grid(row=1, column=1, sticky="w", padx=(5, 0))
         
         # Quantity
         qty_frame = tk.Frame(content_frame)
@@ -1089,8 +1100,8 @@ class SalesFrame(tk.Frame):
                         messagebox.showwarning("Insufficient Stock", 
                                              f"Only {selected_batch[0]['quantity']} units available in batch {selected_batch[0]['number']}!")
                         return
-                else:
-                    # Get the most current available stock again
+                elif len(batches) == 0:
+                    # No batches available - check general stock
                     db_stock = db.fetchone("""
                         SELECT COALESCE(SUM(b.quantity), 0) as stock
                         FROM products p
@@ -1110,6 +1121,10 @@ class SalesFrame(tk.Frame):
                         # Update the label to show the current stock
                         stock_label.config(text=f"Price: {product_values[2]} | Available: {real_available_stock}")
                         return
+                else:
+                    # Batches exist but none selected - should not happen with new UI
+                    messagebox.showwarning("No Batch Selected", "Please select a batch!")
+                    return
                 
                 # Validate discount
                 if discount < 0 or discount > 100:
