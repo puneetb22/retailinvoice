@@ -1967,8 +1967,12 @@ class InventoryManagementFrame(tk.Frame):
             print(f"Error handling product selection: {str(e)}")  # Log error instead of showing dialog
 
     def save_stock_entry(self):
-        """Save a new stock entry"""
+        """Save a new stock entry using inventory manager"""
         try:
+            # Import inventory manager
+            from utils.inventory_manager import InventoryManager
+            inventory_manager = InventoryManager(self.controller.db)
+            
             # Validate required fields
             if not self.stock_product_var.get():
                 messagebox.showerror("Error", "Please select a product")
@@ -1997,18 +2001,21 @@ class InventoryManagementFrame(tk.Frame):
                 
             # Parse and validate dates
             try:
-                mfg_date = datetime.datetime.strptime(self.mfg_date_var.get(), "%Y-%m-%d").date()
-                expiry_date = None
-                if self.expiry_date_var.get():
-                    expiry_date = datetime.datetime.strptime(self.expiry_date_var.get(), "%Y-%m-%d").date()
+                mfg_date = self.mfg_date_var.get() if self.mfg_date_var.get() else None
+                if mfg_date:
+                    datetime.datetime.strptime(mfg_date, "%Y-%m-%d").date()
+                    
+                expiry_date = self.expiry_date_var.get() if self.expiry_date_var.get() else None
+                if expiry_date:
+                    datetime.datetime.strptime(expiry_date, "%Y-%m-%d").date()
             except ValueError:
                 messagebox.showerror("Error", "Invalid date format. Use YYYY-MM-DD")
                 return
                 
             # Parse and validate purchase price
             try:
-                purchase_price = float(self.purchase_price_var.get()) if self.purchase_price_var.get() else 0.0
-                if purchase_price < 0:
+                cost_price = float(self.purchase_price_var.get()) if self.purchase_price_var.get() else 0.0
+                if cost_price < 0:
                     raise ValueError("Price cannot be negative")
             except ValueError as e:
                 messagebox.showerror("Error", f"Invalid purchase price: {str(e)}")
@@ -2017,28 +2024,46 @@ class InventoryManagementFrame(tk.Frame):
             # Get batch number
             batch_number = self.batch_number_var.get() or f"BATCH{random.randint(1000, 9999)}"
             
-            # Save to database
-            cursor = self.controller.db.cursor()
-            cursor.execute("""
-                INSERT INTO batches (
-                    product_id, batch_number, quantity, 
-                    manufacturing_date, expiry_date, purchase_price,
-                    created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-            """, (
-                product_id, batch_number, quantity,
-                mfg_date, expiry_date, purchase_price
-            ))
+            # Begin transaction
+            self.controller.db.begin()
             
-            self.controller.db.commit()
-            
-            # Refresh the entries list
-            self.load_stock_entries()
-            
-            # Clear the form
-            self.clear_stock_entry_form()
-            
-            messagebox.showinfo("Success", "Stock entry saved successfully")
+            try:
+                # Find or create batch
+                batch_id, current_qty = inventory_manager.find_or_create_batch(
+                    product_id=product_id,
+                    batch_number=batch_number,
+                    expiry_date=expiry_date,
+                    cost_price=cost_price,
+                    manufacturing_date=mfg_date
+                )
+                
+                # Update batch quantity
+                success = inventory_manager.update_batch_quantity(
+                    batch_id=batch_id,
+                    quantity_change=quantity,
+                    transaction_type="STOCK_IN",
+                    reference_type="MANUAL_ENTRY",
+                    notes=f"Manual stock entry: {quantity} units"
+                )
+                
+                if not success:
+                    raise Exception("Failed to update batch quantity")
+                
+                # Commit transaction
+                self.controller.db.commit()
+                
+                # Refresh the entries list
+                self.load_stock_entries()
+                
+                # Clear the form
+                self.clear_stock_entry_form()
+                
+                messagebox.showinfo("Success", "Stock entry saved successfully")
+                
+            except Exception as e:
+                # Rollback on error
+                self.controller.db.rollback()
+                raise e
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save stock entry: {str(e)}")

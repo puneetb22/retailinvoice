@@ -276,6 +276,24 @@ DB_SCHEMA = {
             FOREIGN KEY (customer_id) REFERENCES customers(id),
             FOREIGN KEY (invoice_id) REFERENCES invoices(id)
         )
+    """,
+    
+    "stock_log": """
+        CREATE TABLE stock_log (
+            id INTEGER PRIMARY KEY,
+            batch_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            transaction_type TEXT NOT NULL,
+            quantity_change INTEGER NOT NULL,
+            quantity_before INTEGER NOT NULL,
+            quantity_after INTEGER NOT NULL,
+            reference_type TEXT,
+            reference_id INTEGER,
+            transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT,
+            FOREIGN KEY (batch_id) REFERENCES batches(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
     """
 }
 

@@ -241,6 +241,27 @@ class DBHandler:
                     )
                 """)
             
+            # Check for stock_log table
+            if 'stock_log' not in table_names:
+                print("Creating stock_log table...")
+                self.execute("""
+                    CREATE TABLE stock_log (
+                        id INTEGER PRIMARY KEY,
+                        batch_id INTEGER NOT NULL,
+                        product_id INTEGER NOT NULL,
+                        transaction_type TEXT NOT NULL,
+                        quantity_change INTEGER NOT NULL,
+                        quantity_before INTEGER NOT NULL,
+                        quantity_after INTEGER NOT NULL,
+                        reference_type TEXT,
+                        reference_id INTEGER,
+                        transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        notes TEXT,
+                        FOREIGN KEY (batch_id) REFERENCES batches(id),
+                        FOREIGN KEY (product_id) REFERENCES products(id)
+                    )
+                """)
+            
             # Check for categories table
             if 'categories' not in table_names:
                 print("Creating categories table...")
