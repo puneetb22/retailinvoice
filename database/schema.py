@@ -324,7 +324,7 @@ INITIAL_DATA = {
         {"name": "Fertilizers", "description": "Chemical and organic fertilizers for crops"},
         {"name": "Pesticides", "description": "Insecticides, fungicides, and other crop protection chemicals"},
         {"name": "Seeds", "description": "Crop seeds, vegetable seeds, and plant seeds"},
-        {"name": "Equipment", description": "Farming tools and equipment"},
+        {"name": "Equipment", "description": "Farming tools and equipment"},
         {"name": "Other", "description": "Miscellaneous agricultural products"}
     ],
 
