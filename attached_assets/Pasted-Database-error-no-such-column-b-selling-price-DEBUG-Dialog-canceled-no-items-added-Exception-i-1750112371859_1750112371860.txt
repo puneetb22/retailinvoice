@@ -1,0 +1,44 @@
+Database error: no such column: b.selling_price
+DEBUG: Dialog canceled, no items added
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 150, in <lambda>
+    command=lambda i=item["name"]: self.load_module(i))
+                                   ~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 211, in load_module
+    frame = inventory_management.InventoryManagementFrame(self.content_frame, self.controller)
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\inventory_management.py", line 74, in __init__
+    self.setup_batches_tab()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\inventory_management.py", line 481, in setup_batches_tab
+    self.batch_tree.column("Cost Price", width=100)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 1225, in column
+    return _val_or_dict(self.tk, kw, self._w, "column", column)
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 288, in _val_or_dict
+    res = tk.call(*(args + options))
+_tkinter.TclError: Invalid column index Cost Price
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 150, in <lambda>
+    command=lambda i=item["name"]: self.load_module(i))
+                                   ~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 211, in load_module
+    frame = inventory_management.InventoryManagementFrame(self.content_frame, self.controller)
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\inventory_management.py", line 74, in __init__
+    self.setup_batches_tab()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\inventory_management.py", line 481, in setup_batches_tab
+    self.batch_tree.column("Cost Price", width=100)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 1225, in column
+    return _val_or_dict(self.tk, kw, self._w, "column", column)
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 288, in _val_or_dict
+    res = tk.call(*(args + options))
+_tkinter.TclError: Invalid column index Cost Price
