@@ -478,6 +478,8 @@ class InventoryManagementFrame(tk.Frame):
         self.batch_tree.column("MFG Date", width=100)
         self.batch_tree.column("Expiry", width=100)
         self.batch_tree.column("Purchase Date", width=100)
+        self.batch_tree.column("Cost Price", width=100)
+        self.batch_tree.column("Selling Price", width=100)
 
         self.batch_tree.pack(fill=tk.BOTH, expand=True)
 
@@ -742,42 +744,92 @@ class InventoryManagementFrame(tk.Frame):
         for item in self.batch_tree.get_children():
             self.batch_tree.delete(item)
 
-        # Simple query to show all batches
-        query = """
-            SELECT b.id, p.name, b.batch_number, b.quantity, 
-                   b.manufacturing_date, b.expiry_date, b.purchase_date
-            FROM batches b
-            JOIN products p ON b.product_id = p.id
-        """
+        # Query with error handling for selling_price column
+        try:
+            # Try to query with selling_price column
+            query = """
+                SELECT b.id, p.name, b.batch_number, b.quantity, 
+                       b.manufacturing_date, b.expiry_date, b.purchase_date,
+                       b.cost_price, COALESCE(b.selling_price, p.selling_price) as selling_price
+                FROM batches b
+                JOIN products p ON b.product_id = p.id
+            """
+            
+            # Add filter if not showing all
+            if not show_all and self.batch_product_var.get() and ":" in self.batch_product_var.get():
+                product_id = self.batch_product_var.get().split(":")[0]
+                query += f" WHERE b.product_id = {product_id}"
 
-        # Add filter if not showing all
-        if not show_all and self.batch_product_var.get() and ":" in self.batch_product_var.get():
-            product_id = self.batch_product_var.get().split(":")[0]
-            query += f" WHERE b.product_id = {product_id}"
+            query += " ORDER BY p.name, b.expiry_date"
 
-        query += " ORDER BY p.name, b.expiry_date"
+            # Get batches from database
+            batches = self.controller.db.fetchall(query)
+            
+            # Insert into treeview with price columns
+            for batch in batches:
+                # Format dates
+                mfg_date = batch[4] if batch[4] else ""
+                exp_date = batch[5] if batch[5] else ""
+                purchase_date = batch[6] if batch[6] else ""
+                cost_price = f"₹{batch[7]:.2f}" if batch[7] else "₹0.00"
+                selling_price = f"₹{batch[8]:.2f}" if batch[8] else "₹0.00"
 
-        # Get batches from database
-        batches = self.controller.db.fetchall(query)
+                row = (
+                    batch[0],
+                    batch[1],
+                    batch[2] if batch[2] else "",
+                    batch[3],
+                    mfg_date,
+                    exp_date,
+                    purchase_date,
+                    cost_price,
+                    selling_price
+                )
 
-        # Insert into treeview
-        for batch in batches:
-            # Format dates
-            mfg_date = batch[4] if batch[4] else ""
-            exp_date = batch[5] if batch[5] else ""
-            purchase_date = batch[6] if batch[6] else ""
+                self.batch_tree.insert("", "end", values=row)
+                
+        except Exception as e:
+            print(f"Error loading batches with selling_price: {e}")
+            # Fallback query without selling_price column
+            query = """
+                SELECT b.id, p.name, b.batch_number, b.quantity, 
+                       b.manufacturing_date, b.expiry_date, b.purchase_date,
+                       b.cost_price
+                FROM batches b
+                JOIN products p ON b.product_id = p.id
+            """
+            
+            # Add filter if not showing all
+            if not show_all and self.batch_product_var.get() and ":" in self.batch_product_var.get():
+                product_id = self.batch_product_var.get().split(":")[0]
+                query += f" WHERE b.product_id = {product_id}"
 
-            row = (
-                batch[0],
-                batch[1],
-                batch[2] if batch[2] else "",
-                batch[3],
-                mfg_date,
-                exp_date,
-                purchase_date
-            )
+            query += " ORDER BY p.name, b.expiry_date"
 
-            self.batch_tree.insert("", "end", values=row)
+            # Get batches from database
+            batches = self.controller.db.fetchall(query)
+
+            # Insert into treeview without selling price
+            for batch in batches:
+                # Format dates
+                mfg_date = batch[4] if batch[4] else ""
+                exp_date = batch[5] if batch[5] else ""
+                purchase_date = batch[6] if batch[6] else ""
+                cost_price = f"₹{batch[7]:.2f}" if len(batch) > 7 and batch[7] else "₹0.00"
+
+                row = (
+                    batch[0],
+                    batch[1],
+                    batch[2] if batch[2] else "",
+                    batch[3],
+                    mfg_date,
+                    exp_date,
+                    purchase_date,
+                    cost_price,
+                    "₹0.00"  # Default selling price
+                )
+
+                self.batch_tree.insert("", "end", values=row)
 
     def load_alerts(self):
         """Load alert data into the alerts tab"""
