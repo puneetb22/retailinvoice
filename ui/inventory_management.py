@@ -1662,7 +1662,7 @@ class InventoryManagementFrame(tk.Frame):
         self.hsn_mode = "add"  # 'add' or 'edit'
 
     def setup_stock_entry_tab(self):
-        """Setup the stock entry tab for adding new stock with proper batch management"""
+        """Setup the stock entry tab for adding new stock with improved UI and batch management"""
         # Create header
         header_frame = tk.Frame(self.stock_entry_tab, bg=COLORS["primary"])
         header_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -1674,60 +1674,88 @@ class InventoryManagementFrame(tk.Frame):
                               fg=COLORS["text_white"])
         header_label.pack(pady=10)
         
-        # Create split view
-        content_frame = tk.Frame(self.stock_entry_tab, bg=COLORS["bg_primary"])
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # Create main container
+        main_container = tk.Frame(self.stock_entry_tab, bg=COLORS["bg_primary"])
+        main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        # Left side - Entry form
-        form_frame = tk.Frame(content_frame, bg=COLORS["bg_primary"])
-        form_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        # Left side - Entry form with modern layout
+        form_container = tk.Frame(main_container, bg=COLORS["bg_primary"])
+        form_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        # Product selection (only product names)
-        product_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        product_frame.pack(fill=tk.X, pady=5)
+        # Create labeled frame for the form
+        form_labelframe = tk.LabelFrame(form_container, 
+                                       text="Stock Entry Form",
+                                       font=FONTS["regular_bold"],
+                                       bg=COLORS["bg_primary"],
+                                       fg=COLORS["text_primary"],
+                                       padx=20,
+                                       pady=15)
+        form_labelframe.pack(fill=tk.BOTH, expand=True, pady=5)
         
-        product_label = tk.Label(product_frame, 
-                               text="Select Product:",
-                               font=FONTS["regular_bold"],
-                               bg=COLORS["bg_primary"],
-                               fg=COLORS["text_primary"])
-        product_label.pack(anchor="w")
+        # Create grid container inside the labeled frame
+        grid_frame = tk.Frame(form_labelframe, bg=COLORS["bg_primary"])
+        grid_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Configure grid columns
+        grid_frame.columnconfigure(0, weight=0, minsize=150)  # Labels column
+        grid_frame.columnconfigure(1, weight=1, minsize=300)  # Inputs column
+        
+        row = 0
+        
+        # Product selection
+        tk.Label(grid_frame, 
+                text="Select Product:",
+                font=FONTS["regular_bold"],
+                bg=COLORS["bg_primary"],
+                fg=COLORS["text_primary"],
+                anchor="w").grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
         
         self.stock_product_var = tk.StringVar()
-        self.stock_product_dropdown = ttk.Combobox(product_frame, 
+        self.stock_product_dropdown = ttk.Combobox(grid_frame, 
                                                  textvariable=self.stock_product_var,
                                                  font=FONTS["regular"],
-                                                 width=50,
+                                                 width=40,
                                                  state="readonly")
-        self.stock_product_dropdown.pack(fill=tk.X, pady=5)
+        self.stock_product_dropdown.grid(row=row, column=1, sticky="ew", pady=8)
         self.stock_product_dropdown.bind("<<ComboboxSelected>>", self.on_stock_product_select)
+        row += 1
         
-        # Existing batches info frame
-        self.existing_batches_frame = tk.Frame(form_frame, bg=COLORS["bg_secondary"], relief=tk.RIDGE, bd=1)
-        self.existing_batches_frame.pack(fill=tk.X, pady=10)
+        # Existing batches info section
+        tk.Label(grid_frame, 
+                text="Existing Batches:",
+                font=FONTS["regular_bold"],
+                bg=COLORS["bg_primary"],
+                fg=COLORS["text_primary"],
+                anchor="w").grid(row=row, column=0, sticky="nw", padx=(0, 10), pady=8)
+        
+        self.existing_batches_frame = tk.Frame(grid_frame, 
+                                             bg=COLORS["bg_secondary"], 
+                                             relief=tk.RIDGE, 
+                                             bd=1)
+        self.existing_batches_frame.grid(row=row, column=1, sticky="ew", pady=8)
         
         existing_label = tk.Label(self.existing_batches_frame, 
-                                text="Existing Batches for Selected Product:",
-                                font=FONTS["regular_bold"],
+                                text="Select product to view existing batches",
+                                font=FONTS["small"],
                                 bg=COLORS["bg_secondary"],
-                                fg=COLORS["text_primary"])
-        existing_label.pack(anchor="w", padx=5, pady=5)
+                                fg=COLORS["text_secondary"])
+        existing_label.pack(padx=10, pady=5)
+        row += 1
         
-        # Batch selection section
-        batch_selection_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        batch_selection_frame.pack(fill=tk.X, pady=10)
+        # Batch mode selection
+        tk.Label(grid_frame, 
+                text="Batch Mode:",
+                font=FONTS["regular_bold"],
+                bg=COLORS["bg_primary"],
+                fg=COLORS["text_primary"],
+                anchor="w").grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
         
-        batch_mode_label = tk.Label(batch_selection_frame, 
-                                  text="Batch Selection Mode:",
-                                  font=FONTS["regular_bold"],
-                                  bg=COLORS["bg_primary"],
-                                  fg=COLORS["text_primary"])
-        batch_mode_label.pack(anchor="w")
+        batch_mode_frame = tk.Frame(grid_frame, bg=COLORS["bg_primary"])
+        batch_mode_frame.grid(row=row, column=1, sticky="ew", pady=8)
         
-        # Radio buttons for batch mode
         self.batch_mode_var = tk.StringVar(value="existing")
         
-        existing_radio = tk.Radiobutton(batch_selection_frame,
+        existing_radio = tk.Radiobutton(batch_mode_frame,
                                       text="Add to Existing Batch",
                                       variable=self.batch_mode_var,
                                       value="existing",
@@ -1736,9 +1764,9 @@ class InventoryManagementFrame(tk.Frame):
                                       fg=COLORS["text_primary"],
                                       selectcolor=COLORS["bg_primary"],
                                       command=self.on_batch_mode_change)
-        existing_radio.pack(anchor="w", padx=20, pady=2)
+        existing_radio.pack(side=tk.LEFT, padx=(0, 20))
         
-        new_radio = tk.Radiobutton(batch_selection_frame,
+        new_radio = tk.Radiobutton(batch_mode_frame,
                                  text="Create New Batch",
                                  variable=self.batch_mode_var,
                                  value="new",
@@ -1747,184 +1775,198 @@ class InventoryManagementFrame(tk.Frame):
                                  fg=COLORS["text_primary"],
                                  selectcolor=COLORS["bg_primary"],
                                  command=self.on_batch_mode_change)
-        new_radio.pack(anchor="w", padx=20, pady=2)
+        new_radio.pack(side=tk.LEFT)
+        row += 1
         
         # Existing batch selection
-        self.existing_batch_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        self.existing_batch_frame.pack(fill=tk.X, pady=5)
-        
-        existing_batch_label = tk.Label(self.existing_batch_frame, 
-                                      text="Select Existing Batch:",
-                                      font=FONTS["regular"],
-                                      bg=COLORS["bg_primary"],
-                                      fg=COLORS["text_primary"])
-        existing_batch_label.pack(anchor="w")
+        self.existing_batch_label = tk.Label(grid_frame, 
+                                           text="Select Batch:",
+                                           font=FONTS["regular"],
+                                           bg=COLORS["bg_primary"],
+                                           fg=COLORS["text_primary"],
+                                           anchor="w")
+        self.existing_batch_label.grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
         
         self.existing_batch_var = tk.StringVar()
-        self.existing_batch_dropdown = ttk.Combobox(self.existing_batch_frame, 
+        self.existing_batch_dropdown = ttk.Combobox(grid_frame, 
                                                    textvariable=self.existing_batch_var,
                                                    font=FONTS["regular"],
-                                                   width=50,
+                                                   width=40,
                                                    state="readonly")
-        self.existing_batch_dropdown.pack(fill=tk.X, pady=2)
+        self.existing_batch_dropdown.grid(row=row, column=1, sticky="ew", pady=8)
         self.existing_batch_dropdown.bind("<<ComboboxSelected>>", self.on_existing_batch_select)
+        row += 1
         
-        # New batch details frame
-        self.new_batch_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        self.new_batch_frame.pack(fill=tk.X, pady=5)
+        # New batch fields (initially hidden)
+        self.new_batch_fields = []
         
-        # Batch number field for new batch
-        batch_number_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
-        batch_number_frame.pack(fill=tk.X, pady=2)
-        
-        batch_number_label = tk.Label(batch_number_frame, 
-                                    text="New Batch Number:",
+        # Batch number
+        batch_number_label = tk.Label(grid_frame, 
+                                    text="Batch Number:",
                                     font=FONTS["regular"],
                                     bg=COLORS["bg_primary"],
-                                    fg=COLORS["text_primary"])
-        batch_number_label.pack(anchor="w")
+                                    fg=COLORS["text_primary"],
+                                    anchor="w")
+        batch_number_label.grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
+        self.new_batch_fields.append(batch_number_label)
         
         self.batch_number_var = tk.StringVar()
-        batch_number_entry = tk.Entry(batch_number_frame, 
+        batch_number_entry = tk.Entry(grid_frame, 
                                     textvariable=self.batch_number_var,
-                                    font=FONTS["regular"])
-        batch_number_entry.pack(fill=tk.X, pady=2)
+                                    font=FONTS["regular"],
+                                    width=42)
+        batch_number_entry.grid(row=row, column=1, sticky="ew", pady=8)
+        self.new_batch_fields.append(batch_number_entry)
+        row += 1
         
-        # Manufacturing date field
-        mfg_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
-        mfg_frame.pack(fill=tk.X, pady=2)
-        
-        mfg_label = tk.Label(mfg_frame, 
-                           text="Manufacturing Date (YYYY-MM-DD):",
+        # Manufacturing date
+        mfg_label = tk.Label(grid_frame, 
+                           text="Manufacturing Date:",
                            font=FONTS["regular"],
                            bg=COLORS["bg_primary"],
-                           fg=COLORS["text_primary"])
-        mfg_label.pack(anchor="w")
+                           fg=COLORS["text_primary"],
+                           anchor="w")
+        mfg_label.grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
+        self.new_batch_fields.append(mfg_label)
         
         self.mfg_date_var = tk.StringVar()
         self.mfg_date_var.set(datetime.datetime.now().strftime("%Y-%m-%d"))
-        mfg_entry = tk.Entry(mfg_frame, 
+        mfg_entry = tk.Entry(grid_frame, 
                            textvariable=self.mfg_date_var,
-                           font=FONTS["regular"])
-        mfg_entry.pack(fill=tk.X, pady=2)
+                           font=FONTS["regular"],
+                           width=42)
+        mfg_entry.grid(row=row, column=1, sticky="ew", pady=8)
+        self.new_batch_fields.append(mfg_entry)
+        row += 1
         
-        # Expiry date field
-        expiry_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
-        expiry_frame.pack(fill=tk.X, pady=2)
-        
-        expiry_label = tk.Label(expiry_frame, 
-                              text="Expiry Date (YYYY-MM-DD):",
+        # Expiry date
+        expiry_label = tk.Label(grid_frame, 
+                              text="Expiry Date:",
                               font=FONTS["regular"],
                               bg=COLORS["bg_primary"],
-                              fg=COLORS["text_primary"])
-        expiry_label.pack(anchor="w")
+                              fg=COLORS["text_primary"],
+                              anchor="w")
+        expiry_label.grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
+        self.new_batch_fields.append(expiry_label)
         
         self.expiry_date_var = tk.StringVar()
-        expiry_entry = tk.Entry(expiry_frame, 
+        expiry_entry = tk.Entry(grid_frame, 
                               textvariable=self.expiry_date_var,
-                              font=FONTS["regular"])
-        expiry_entry.pack(fill=tk.X, pady=2)
+                              font=FONTS["regular"],
+                              width=42)
+        expiry_entry.grid(row=row, column=1, sticky="ew", pady=8)
+        self.new_batch_fields.append(expiry_entry)
+        row += 1
         
-        # Wholesale price field
-        wholesale_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
-        wholesale_frame.pack(fill=tk.X, pady=2)
-        
-        wholesale_label = tk.Label(wholesale_frame, 
+        # Wholesale price
+        wholesale_label = tk.Label(grid_frame, 
                                  text="Wholesale Price:",
                                  font=FONTS["regular"],
                                  bg=COLORS["bg_primary"],
-                                 fg=COLORS["text_primary"])
-        wholesale_label.pack(anchor="w")
+                                 fg=COLORS["text_primary"],
+                                 anchor="w")
+        wholesale_label.grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
+        self.new_batch_fields.append(wholesale_label)
         
         self.wholesale_price_var = tk.StringVar()
-        wholesale_entry = tk.Entry(wholesale_frame, 
+        wholesale_entry = tk.Entry(grid_frame, 
                                  textvariable=self.wholesale_price_var,
-                                 font=FONTS["regular"])
-        wholesale_entry.pack(fill=tk.X, pady=2)
+                                 font=FONTS["regular"],
+                                 width=42)
+        wholesale_entry.grid(row=row, column=1, sticky="ew", pady=8)
+        self.new_batch_fields.append(wholesale_entry)
+        row += 1
         
-        # Selling price field
-        selling_frame = tk.Frame(self.new_batch_frame, bg=COLORS["bg_primary"])
-        selling_frame.pack(fill=tk.X, pady=2)
-        
-        selling_label = tk.Label(selling_frame, 
+        # Selling price
+        selling_label = tk.Label(grid_frame, 
                                text="Selling Price:",
                                font=FONTS["regular"],
                                bg=COLORS["bg_primary"],
-                               fg=COLORS["text_primary"])
-        selling_label.pack(anchor="w")
+                               fg=COLORS["text_primary"],
+                               anchor="w")
+        selling_label.grid(row=row, column=0, sticky="w", padx=(0, 10), pady=8)
+        self.new_batch_fields.append(selling_label)
         
         self.selling_price_var = tk.StringVar()
-        selling_entry = tk.Entry(selling_frame, 
+        selling_entry = tk.Entry(grid_frame, 
                                textvariable=self.selling_price_var,
-                               font=FONTS["regular"])
-        selling_entry.pack(fill=tk.X, pady=2)
+                               font=FONTS["regular"],
+                               width=42)
+        selling_entry.grid(row=row, column=1, sticky="ew", pady=8)
+        self.new_batch_fields.append(selling_entry)
+        row += 1
         
-        # Quantity field (common for both modes)
-        quantity_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        quantity_frame.pack(fill=tk.X, pady=10)
-        
-        quantity_label = tk.Label(quantity_frame, 
-                                text="Quantity to Add:",
-                                font=FONTS["regular_bold"],
-                                bg=COLORS["bg_primary"],
-                                fg=COLORS["text_primary"])
-        quantity_label.pack(anchor="w")
+        # Quantity (always visible)
+        tk.Label(grid_frame, 
+                text="Quantity to Add:",
+                font=FONTS["regular_bold"],
+                bg=COLORS["bg_primary"],
+                fg=COLORS["text_primary"],
+                anchor="w").grid(row=row, column=0, sticky="w", padx=(0, 10), pady=12)
         
         self.quantity_var = tk.StringVar()
-        quantity_entry = tk.Entry(quantity_frame, 
+        quantity_entry = tk.Entry(grid_frame, 
                                 textvariable=self.quantity_var,
-                                font=FONTS["regular"])
-        quantity_entry.pack(fill=tk.X, pady=2)
+                                font=FONTS["regular"],
+                                width=42)
+        quantity_entry.grid(row=row, column=1, sticky="ew", pady=12)
+        row += 1
         
         # Buttons frame
-        button_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        button_frame.pack(fill=tk.X, pady=20)
+        button_frame = tk.Frame(form_labelframe, bg=COLORS["bg_primary"])
+        button_frame.pack(fill=tk.X, pady=(20, 0))
         
-        # Save button
-        save_btn = tk.Button(button_frame,
-                           text="Save Stock Entry",
-                           font=FONTS["regular_bold"],
-                           bg=COLORS["primary"],
-                           fg=COLORS["text_white"],
-                           padx=20,
-                           pady=10,
-                           cursor="hand2",
-                           command=self.save_stock_entry)
-        save_btn.pack(side=tk.LEFT, padx=(0, 10))
+        # Right-aligned buttons
+        button_container = tk.Frame(button_frame, bg=COLORS["bg_primary"])
+        button_container.pack(side=tk.RIGHT)
         
         # Clear button
-        clear_btn = tk.Button(button_frame,
+        clear_btn = tk.Button(button_container,
                             text="Clear Form",
                             font=FONTS["regular"],
                             bg=COLORS["secondary"],
                             fg=COLORS["text_white"],
                             padx=20,
-                            pady=10,
+                            pady=8,
                             cursor="hand2",
                             command=self.clear_stock_entry_form)
-        clear_btn.pack(side=tk.LEFT)
+        clear_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Save button
+        save_btn = tk.Button(button_container,
+                           text="Save Stock Entry",
+                           font=FONTS["regular_bold"],
+                           bg=COLORS["primary"],
+                           fg=COLORS["text_white"],
+                           padx=20,
+                           pady=8,
+                           cursor="hand2",
+                           command=self.save_stock_entry)
+        save_btn.pack(side=tk.LEFT)
         
         # Right side - Recent entries
-        entries_frame = tk.Frame(content_frame, bg=COLORS["bg_primary"], width=600)
-        entries_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
-
-        # Recent entries title
-        entries_title = tk.Label(entries_frame, 
-                               text="Recent Stock Entries",
-                               font=FONTS["subheading"],
-                               bg=COLORS["bg_primary"],
-                               fg=COLORS["text_primary"])
-        entries_title.pack(pady=(0, 10))
+        entries_container = tk.Frame(main_container, bg=COLORS["bg_primary"])
+        entries_container.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        
+        # Recent entries labeled frame
+        entries_labelframe = tk.LabelFrame(entries_container, 
+                                         text="Recent Stock Entries",
+                                         font=FONTS["regular_bold"],
+                                         bg=COLORS["bg_primary"],
+                                         fg=COLORS["text_primary"],
+                                         padx=10,
+                                         pady=10)
+        entries_labelframe.pack(fill=tk.BOTH, expand=True, pady=5)
 
         # Treeview for recent entries
-        tree_frame = tk.Frame(entries_frame, bg=COLORS["bg_primary"])
+        tree_frame = tk.Frame(entries_labelframe, bg=COLORS["bg_primary"])
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
         # Scrollbar
         scrollbar = ttk.Scrollbar(tree_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Create treeview and assign to self.stock_entries_tree
+        # Create treeview
         self.stock_entries_tree = ttk.Treeview(tree_frame, 
                                              columns=("Date", "Product", "Batch", "Qty", "MFG Date", "Expiry", "W.Price", "S.Price"),
                                              show="headings",
@@ -2031,25 +2073,49 @@ class InventoryManagementFrame(tk.Frame):
         try:
             # Clear previous batches display
             for widget in self.existing_batches_frame.winfo_children():
-                if isinstance(widget, tk.Label) and widget.cget('text') != "Existing Batches for Selected Product:":
-                    widget.destroy()
+                widget.destroy()
             
-            # Get existing batches
-            query = """
-                SELECT id, batch_number, quantity, manufacturing_date, expiry_date, 
-                       cost_price, selling_price
-                FROM batches 
-                WHERE product_id = ? AND quantity > 0
-                ORDER BY expiry_date ASC, manufacturing_date ASC
-            """
-            batches = self.controller.db.fetchall(query, (product_id,))
+            # Get existing batches with proper error handling for missing selling_price column
+            try:
+                query = """
+                    SELECT id, batch_number, quantity, manufacturing_date, expiry_date, 
+                           cost_price, COALESCE(selling_price, 0) as selling_price
+                    FROM batches 
+                    WHERE product_id = ? AND quantity > 0
+                    ORDER BY expiry_date ASC, manufacturing_date ASC
+                """
+                batches = self.controller.db.fetchall(query, (product_id,))
+            except Exception as db_error:
+                # Fallback query without selling_price if column doesn't exist
+                print(f"Database error: {db_error}")
+                query = """
+                    SELECT id, batch_number, quantity, manufacturing_date, expiry_date, 
+                           cost_price, 0 as selling_price
+                    FROM batches 
+                    WHERE product_id = ? AND quantity > 0
+                    ORDER BY expiry_date ASC, manufacturing_date ASC
+                """
+                batches = self.controller.db.fetchall(query, (product_id,))
             
             self.existing_batches_data = {}
             batch_options = []
             
             if batches:
+                # Add header
+                header_label = tk.Label(self.existing_batches_frame,
+                                      text="Available Batches:",
+                                      font=FONTS["small_bold"],
+                                      bg=COLORS["bg_secondary"],
+                                      fg=COLORS["text_primary"],
+                                      anchor="w")
+                header_label.pack(fill=tk.X, padx=5, pady=2)
+                
                 for batch in batches:
                     batch_id, batch_number, quantity, mfg_date, exp_date, cost_price, selling_price = batch
+                    
+                    # Handle missing selling_price by using cost_price
+                    if selling_price == 0 or selling_price is None:
+                        selling_price = cost_price
                     
                     # Format display string
                     exp_str = f" (Exp: {exp_date})" if exp_date else " (No Expiry)"
@@ -2077,12 +2143,12 @@ class InventoryManagementFrame(tk.Frame):
                     batch_info.pack(fill=tk.X, padx=10, pady=1)
             else:
                 no_batch_label = tk.Label(self.existing_batches_frame,
-                                        text="• No existing batches found",
+                                        text="No existing batches found",
                                         font=FONTS["small"],
                                         bg=COLORS["bg_secondary"],
                                         fg=COLORS["text_secondary"],
                                         anchor="w")
-                no_batch_label.pack(fill=tk.X, padx=10, pady=1)
+                no_batch_label.pack(fill=tk.X, padx=10, pady=5)
             
             # Update existing batch dropdown
             self.existing_batch_dropdown['values'] = batch_options
@@ -2094,6 +2160,14 @@ class InventoryManagementFrame(tk.Frame):
                 
         except Exception as e:
             print(f"Error loading existing batches: {str(e)}")
+            # Show error in the UI
+            error_label = tk.Label(self.existing_batches_frame,
+                                 text=f"Error loading batches: {str(e)}",
+                                 font=FONTS["small"],
+                                 bg=COLORS["bg_secondary"],
+                                 fg=COLORS["danger"],
+                                 anchor="w")
+            error_label.pack(fill=tk.X, padx=10, pady=5)
 
     def on_existing_batch_select(self, event=None):
         """Handle selection of existing batch"""
@@ -2110,12 +2184,18 @@ class InventoryManagementFrame(tk.Frame):
         
         if mode == "existing":
             # Show existing batch selection, hide new batch fields
-            self.existing_batch_frame.pack(fill=tk.X, pady=5)
-            self.new_batch_frame.pack_forget()
+            self.existing_batch_label.grid()
+            self.existing_batch_dropdown.grid()
+            # Hide new batch fields
+            for field in self.new_batch_fields:
+                field.grid_remove()
         else:
             # Show new batch fields, hide existing batch selection
-            self.existing_batch_frame.pack_forget()
-            self.new_batch_frame.pack(fill=tk.X, pady=5)
+            self.existing_batch_label.grid_remove()
+            self.existing_batch_dropdown.grid_remove()
+            # Show new batch fields
+            for field in self.new_batch_fields:
+                field.grid()
 
     def check_batch_duplicate(self, product_id, batch_number, mfg_date, exp_date, cost_price):
         """Check if a batch with similar details already exists"""
