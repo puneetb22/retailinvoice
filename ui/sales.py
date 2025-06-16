@@ -862,41 +862,52 @@ class SalesFrame(tk.Frame):
         # Get additional product details and batches from database
         db = self.controller.db
         product_details = db.fetchone("""
-            SELECT p.hsn_code, p.tax_percentage,
-                   GROUP_CONCAT(b.id || '|' || b.batch_number || '|' || b.quantity || '|' || b.expiry_date || '|' || COALESCE(b.selling_price, p.selling_price)) as batch_info
+            SELECT p.hsn_code, p.tax_percentage
             FROM products p
-            LEFT JOIN batches b ON p.id = b.product_id 
-            AND (b.expiry_date > date('now') OR b.expiry_date IS NULL)
-            AND b.quantity > 0
             WHERE p.id = ?
-            GROUP BY p.id
         """, (product_id,))
         
         # Set default values if not found
         if product_details:
             hsn_code = product_details[0] or ""
             tax_percentage = product_details[1] or 18  # Default 18% GST if not set
-            batch_info = product_details[2] or ""
         else:
             hsn_code = ""
             tax_percentage = 18  # Default 18% GST
-            batch_info = ""
             
+        # Get batches separately for better handling
+        batch_query = """
+            SELECT b.id, b.batch_number, b.quantity, b.expiry_date, 
+                   COALESCE(b.selling_price, p.selling_price) as selling_price,
+                   b.manufacturing_date
+            FROM batches b
+            JOIN products p ON b.product_id = p.id
+            WHERE b.product_id = ? 
+            AND b.quantity > 0
+            AND (b.expiry_date > date('now') OR b.expiry_date IS NULL)
+            ORDER BY 
+                CASE WHEN b.expiry_date IS NULL THEN 1 ELSE 0 END,
+                b.expiry_date ASC,
+                b.manufacturing_date ASC
+        """
+        
+        batch_rows = db.fetchall(batch_query, (product_id,))
+        
         # Parse batch information
         batches = []
-        if batch_info:
-            for batch in batch_info.split(','):
-                try:
-                    batch_id, batch_number, quantity, expiry, selling_price = batch.split('|')
-                    batches.append({
-                        'id': int(batch_id),
-                        'number': batch_number,
-                        'quantity': int(quantity),
-                        'expiry': expiry,
-                        'selling_price': float(selling_price) if selling_price else product_price
-                    })
-                except (ValueError, IndexError):
-                    continue
+        for batch_row in batch_rows:
+            try:
+                batches.append({
+                    'id': batch_row[0],
+                    'number': batch_row[1] or f"BATCH-{batch_row[0]}",
+                    'quantity': batch_row[2],
+                    'expiry': batch_row[3],
+                    'selling_price': float(batch_row[4]) if batch_row[4] else product_price,
+                    'manufacturing_date': batch_row[5]
+                })
+            except (ValueError, IndexError, TypeError) as e:
+                print(f"Error parsing batch data: {e}")
+                continue
         
         # Check stock
         if available_stock <= 0:
@@ -962,15 +973,19 @@ class SalesFrame(tk.Frame):
         selected_batch = [None]  # Use list to store selected batch for access in nested functions
         batch_frame = None
         
+        # Always show batch selection if batches exist
         if len(batches) > 0:
             batch_frame = tk.Frame(content_frame)
-            batch_frame.pack(fill=tk.X, pady=5)
+            batch_frame.pack(fill=tk.X, pady=10)
+            
+            # Add a separator line for better visual separation
+            separator = tk.Frame(batch_frame, height=2, bg=COLORS["bg_secondary"])
+            separator.pack(fill=tk.X, pady=(0, 10))
             
             tk.Label(batch_frame, 
                    text="Select Batch:",
                    font=FONTS["regular_bold"],
-                   width=12,
-                   anchor="w").grid(row=0, column=0, sticky="w")
+                   anchor="w").pack(anchor="w")
             
             # Create batch options with expiry dates and prices
             batch_options = []
@@ -984,9 +999,9 @@ class SalesFrame(tk.Frame):
                                      textvariable=batch_var,
                                      values=batch_options,
                                      font=FONTS["regular"],
-                                     width=40,
+                                     width=50,
                                      state="readonly")
-            batch_combo.grid(row=0, column=1, sticky="w", padx=(5, 0))
+            batch_combo.pack(fill=tk.X, pady=5)
             
             # Store selected batch info and update price
             def on_batch_select(event=None):
@@ -1015,10 +1030,23 @@ class SalesFrame(tk.Frame):
                 batch_combo.config(state="disabled")
                 # Add a note for single batch
                 note_label = tk.Label(batch_frame, 
-                                    text="(Only one batch available)",
+                                    text="(Only one batch available - auto-selected)",
                                     font=FONTS["small"],
                                     fg=COLORS["text_secondary"])
-                note_label.grid(row=1, column=1, sticky="w", padx=(5, 0))
+                note_label.pack(anchor="w", pady=(0, 5))
+        else:
+            # Show message when no batches are available
+            no_batch_frame = tk.Frame(content_frame)
+            no_batch_frame.pack(fill=tk.X, pady=10)
+            
+            separator = tk.Frame(no_batch_frame, height=2, bg=COLORS["bg_secondary"])
+            separator.pack(fill=tk.X, pady=(0, 10))
+            
+            no_batch_label = tk.Label(no_batch_frame, 
+                                    text="⚠️ No batches available for this product",
+                                    font=FONTS["regular"],
+                                    fg=COLORS["danger"])
+            no_batch_label.pack(anchor="w")
         
         # Quantity
         qty_frame = tk.Frame(content_frame)
@@ -1095,35 +1123,19 @@ class SalesFrame(tk.Frame):
                     return
                 
                 # Check batch-specific stock if batch selection exists
-                if selected_batch[0]:
+                if len(batches) > 0:
+                    if not selected_batch[0]:
+                        messagebox.showwarning("No Batch Selected", "Please select a batch!")
+                        return
+                    
                     if quantity > selected_batch[0]['quantity']:
                         messagebox.showwarning("Insufficient Stock", 
                                              f"Only {selected_batch[0]['quantity']} units available in batch {selected_batch[0]['number']}!")
                         return
-                elif len(batches) == 0:
-                    # No batches available - check general stock
-                    db_stock = db.fetchone("""
-                        SELECT COALESCE(SUM(b.quantity), 0) as stock
-                        FROM products p
-                        LEFT JOIN batches b ON p.id = b.product_id AND (b.expiry_date > date('now') OR b.expiry_date IS NULL)
-                        WHERE p.id = ?
-                        GROUP BY p.id
-                    """, (product_id,))
-                    
-                    actual_stock = db_stock[0] if db_stock else 0
-                    reserved_qty = self.reserved_inventory.get(product_id, 0)
-                    real_available_stock = max(0, actual_stock - reserved_qty)
-                    
-                    # Check against real-time stock
-                    if quantity > real_available_stock:
-                        messagebox.showwarning("Insufficient Stock", 
-                                             f"Only {real_available_stock} units available!")
-                        # Update the label to show the current stock
-                        stock_label.config(text=f"Price: {product_values[2]} | Available: {real_available_stock}")
-                        return
                 else:
-                    # Batches exist but none selected - should not happen with new UI
-                    messagebox.showwarning("No Batch Selected", "Please select a batch!")
+                    # No batches available - this shouldn't happen if we have proper batch management
+                    messagebox.showwarning("No Stock Available", 
+                                         f"No batches available for {product_name}. Please add stock first.")
                     return
                 
                 # Validate discount
