@@ -4026,7 +4026,10 @@ class SalesFrame(tk.Frame):
                     "tax_percentage": float(tax_rate),
                     "tax_amount": float(tax_amount),
                     "total": float(item["total"])
-                })</old_str>
+                })
+                
+                # Also add to invoice_items table for compatibility with sales_history view
+                # Check if hsn_code column exists in invoice_items before inserting</old_str>
                 
                 # Also add to invoice_items table for compatibility with sales_history view
                 # Check if hsn_code column exists in invoice_items before inserting
