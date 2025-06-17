@@ -4007,15 +4007,19 @@ class SalesFrame(tk.Frame):
                 tax_amount = discounted_amount * (tax_rate_decimal / Decimal('100'))
                 
                 # Insert sale item - convert any Decimal values to float for SQLite
-                # Debug output to verify HSN code
+                # Debug output to verify HSN code and batch info
                 hsn_code = item.get("hsn_code", "")
-                print(f"Item: {item['name']}, HSN code before insertion: '{hsn_code}'")
+                batch_number = item.get("batch_number", "")
+                expiry_date = item.get("expiry_date", "")
+                print(f"Item: {item['name']}, HSN code: '{hsn_code}', Batch: '{batch_number}', Expiry: '{expiry_date}'")
                 
                 sale_item_id = db.insert("sale_items", {
                     "sale_id": sale_id,
                     "product_id": item["product_id"],
                     "product_name": item["name"],
                     "hsn_code": hsn_code,
+                    "batch_number": batch_number,
+                    "expiry_date": expiry_date,
                     "quantity": float(item["quantity"]),
                     "price": float(product_price),
                     "discount_percent": float(item["discount"]),

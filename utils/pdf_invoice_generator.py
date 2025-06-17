@@ -290,11 +290,11 @@ def generate_invoice(invoice_data, save_path):
         # Payment information
         payment_data = invoice_data.get('payment', {})
         payment_method = payment_data.get('method', 'Cash')
-        
+
         # Ensure payment_method is a string
         if not isinstance(payment_method, str):
             payment_method = str(payment_method) if payment_method is not None else 'Cash'
-        
+
         payment_status = payment_data.get('status', 'PAID')
 
         # Extract financial data
@@ -346,7 +346,7 @@ def generate_invoice(invoice_data, save_path):
         # Calculate outstanding amount based on payment method
         outstanding_amount = 0
         payment_method_upper = payment_method.upper() if isinstance(payment_method, str) else str(payment_method).upper()
-        
+
         if payment_method_upper == "CREDIT":
             outstanding_amount = total
         elif payment_method_upper == "SPLIT" and payment_data.get('split'):
@@ -513,7 +513,7 @@ def generate_invoice(invoice_data, save_path):
 
             # First, check what tables and columns we actually have
             print(f"DEBUG: Looking for items for invoice_id: '{invoice_id}' (type: {type(invoice_id)})")
-            
+
             # If invoice_id is empty, try to get it from invoice_number
             if not invoice_id or invoice_id == '':
                 print("DEBUG: invoice_id is empty, trying to find by invoice_number")
@@ -536,7 +536,7 @@ def generate_invoice(invoice_data, save_path):
             cursor.execute("PRAGMA table_info(invoice_items)")
             ii_schema = cursor.fetchall()
             print(f"DEBUG: invoice_items schema: {[col[1] for col in ii_schema]}")
-            
+
             cursor.execute("PRAGMA table_info(sale_items)")
             si_schema = cursor.fetchall()
             print(f"DEBUG: sale_items schema: {[col[1] for col in si_schema]}")
@@ -544,15 +544,15 @@ def generate_invoice(invoice_data, save_path):
             # Check if we should query invoice_items or sale_items
             invoice_items_count = 0
             sale_items_count = 0
-            
+
             if invoice_id:
                 # First try invoice_items table
                 cursor.execute("SELECT COUNT(*) FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
                 invoice_items_count = cursor.fetchone()[0]
-                
+
                 cursor.execute("SELECT COUNT(*) FROM sale_items WHERE sale_id = ?", (invoice_id,))
                 sale_items_count = cursor.fetchone()[0]
-                
+
                 # Also try cross-referencing through sales table if no direct items found
                 if invoice_items_count == 0 and sale_items_count == 0:
                     # Try to find sale_id that corresponds to this invoice
@@ -567,7 +567,7 @@ def generate_invoice(invoice_data, save_path):
                             # Update invoice_id to use sale_id for querying sale_items
                             print(f"DEBUG: Using sale_id {sale_id} instead of invoice_id {invoice_id} for item lookup")
                             invoice_id = sale_id
-            
+
             print(f"DEBUG: Found {invoice_items_count} items in invoice_items, {sale_items_count} items in sale_items")
 
             # Debug: Show actual data in tables
@@ -575,7 +575,7 @@ def generate_invoice(invoice_data, save_path):
                 cursor.execute("SELECT * FROM invoice_items WHERE invoice_id = ? LIMIT 1", (invoice_id,))
                 sample_ii = cursor.fetchone()
                 print(f"DEBUG: Sample invoice_items data: {sample_ii}")
-            
+
             if sale_items_count > 0:
                 cursor.execute("SELECT * FROM sale_items WHERE sale_id = ? LIMIT 1", (invoice_id,))
                 sample_si = cursor.fetchone()
@@ -591,14 +591,14 @@ def generate_invoice(invoice_data, save_path):
                 except Exception as e:
                     print(f"DEBUG: Error checking invoice_items schema: {e}")
                     invoice_items_cols = set()
-                
+
                 # Build HSN code selection based on available columns
                 hsn_selection = ""
                 if 'hsn_code' in invoice_items_cols:
                     hsn_selection = "COALESCE(ii.hsn_code, p.hsn_code, '') as hsn_code"
                 else:
                     hsn_selection = "COALESCE(p.hsn_code, '') as hsn_code"
-                
+
                 query = f"""
                     SELECT 
                         COALESCE(p.name, 'Unknown Product') as product_name,
@@ -627,7 +627,7 @@ def generate_invoice(invoice_data, save_path):
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
                 print(f"DEBUG: Query returned {len(items)} individual items from invoice_items")
-                
+
             elif sale_items_count > 0:
                 # Query from sale_items table - each sale_item represents one actual transaction
                 # Show exactly what was sold with correct batch information
@@ -653,7 +653,7 @@ def generate_invoice(invoice_data, save_path):
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
                 print(f"DEBUG: Query returned {len(items)} individual items from sale_items")
-            
+
             # If still no items, try alternative approach
             if not items:
                 print(f"DEBUG: No items found, trying alternative query approach")
@@ -671,7 +671,7 @@ def generate_invoice(invoice_data, save_path):
                             item_data.get('discount', 0),
                             item_data.get('batch_no', '')
                         )
-                        
+
                         if product_key in product_aggregation:
                             # Aggregate quantity and total
                             product_aggregation[product_key]['quantity'] += item_data.get('quantity', 0)
@@ -689,7 +689,7 @@ def generate_invoice(invoice_data, save_path):
                                 'discount': item_data.get('discount', 0),
                                 'total': item_data.get('total', 0)
                             }
-                    
+
                     # Convert aggregated items back to list format
                     items = []
                     for product_key, aggregated_item in product_aggregation.items():
@@ -721,7 +721,7 @@ def generate_invoice(invoice_data, save_path):
             print(f"DEBUG: Retrieved {len(items)} items for processing")
             if items:
                 print(f"DEBUG: First item data: {items[0]}")
-            
+
             cursor.close()
             conn.close()
 
@@ -743,7 +743,7 @@ def generate_invoice(invoice_data, save_path):
                 company = str(item[1]) if item[1] else ""
                 hsn_code = str(item[2]) if item[2] else ""
                 batch_no = str(item[3]) if item[3] else ""
-                
+
                 # Handle expiry date formatting
                 expiry_date = ""
                 if item[4]:
@@ -753,7 +753,7 @@ def generate_invoice(invoice_data, save_path):
                         expiry_date = expiry_str.split()[0]
                     else:
                         expiry_date = expiry_str
-                
+
                 quantity = float(item[5]) if item[5] is not None else 0
                 unit = str(item[6]) if item[6] else "pcs"
                 price = float(item[7]) if item[7] is not None else 0
@@ -782,7 +782,7 @@ def generate_invoice(invoice_data, save_path):
                     'price': price,
                     'discount': discount_str,
                     'total': item_total
-                })
+})
 
                 print(f"DEBUG: Processed item {i+1}: {name}, Batch: '{batch_no}', Expiry: '{expiry_date}', Qty: {qty_str}, Price: {price}, Total: {item_total}")
 
@@ -809,7 +809,7 @@ def generate_invoice(invoice_data, save_path):
         subtotal = items_subtotal
 
         items_data = []
-        
+
         # Always ensure we have some items to display
         if not formatted_items:
             print("WARNING: No formatted items found, creating placeholder")
@@ -826,7 +826,7 @@ def generate_invoice(invoice_data, save_path):
                 'discount': '',
                 'total': 0
             }]
-        
+
         for i, item in enumerate(formatted_items, 1):
             # Ensure all values are properly formatted
             row_data = [
@@ -843,7 +843,7 @@ def generate_invoice(invoice_data, save_path):
                 format_currency(item.get('total', 0), symbol='Rs.')      # Amount
             ]
             items_data.append(row_data)
-            
+
         print(f"DEBUG: Created {len(items_data)} rows for items table")
         if items_data:
             print(f"DEBUG: First row data: {items_data[0]}")
