@@ -3984,14 +3984,8 @@ class SalesFrame(tk.Frame):
             
             # Store sale items
             for item in self.cart_items:
-                # Get product price from database to ensure data integrity
+                # Use the actual price from cart item (which includes batch-specific pricing)
                 product_price = item["price"]
-                if item["product_id"]:
-                    product_info = db.fetchone("""
-                        SELECT selling_price FROM products WHERE id = ?
-                    """, (item["product_id"],))
-                    if product_info:
-                        product_price = product_info[0]
                 
                 # Calculate item tax with proper Decimal handling
                 tax_rate = item.get("tax_percentage", 18)  # Default 18% if not specified
