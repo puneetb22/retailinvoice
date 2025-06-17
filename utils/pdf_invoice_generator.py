@@ -582,7 +582,7 @@ def generate_invoice(invoice_data, save_path):
                 print(f"DEBUG: Sample sale_items data: {sample_si}")
 
             if invoice_items_count > 0:
-                # Query from invoice_items table with proper batch number handling and aggregation
+                # Query from invoice_items table WITHOUT aggregation to preserve individual batch details
                 query = """
                     SELECT 
                         COALESCE(p.name, 'Unknown Product') as product_name,
@@ -591,57 +591,37 @@ def generate_invoice(invoice_data, save_path):
                         COALESCE(ii.batch_number, b.batch_number, '') as batch_number,
                         COALESCE(b.expiry_date, 
                             (SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
-                             ORDER BY expiry_date DESC LIMIT 1), 
+                             AND batch_number = COALESCE(ii.batch_number, b.batch_number)
+                             LIMIT 1), 
                             ''
                         ) as expiry_date,
-                        SUM(ii.quantity) as quantity,
+                        ii.quantity as quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         ii.price_per_unit as rate,
                         COALESCE(ii.discount_percentage, 0) as discount,
-                        SUM(ii.total_price) as amount,
+                        ii.total_price as amount,
                         ii.product_id
                     FROM invoice_items ii
                     LEFT JOIN products p ON ii.product_id = p.id
                     LEFT JOIN batches b ON ii.product_id = b.product_id AND ii.batch_number = b.batch_number
                     WHERE ii.invoice_id = ?
-                    GROUP BY ii.product_id, ii.price_per_unit, ii.discount_percentage, COALESCE(ii.batch_number, b.batch_number, '')
                     ORDER BY ii.id
                 """
-                print(f"DEBUG: Executing aggregated invoice_items query with invoice_id: {invoice_id}")
+                print(f"DEBUG: Executing individual invoice_items query with invoice_id: {invoice_id}")
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(f"DEBUG: Query returned {len(items)} aggregated items from invoice_items")
+                print(f"DEBUG: Query returned {len(items)} individual items from invoice_items")
                 
             elif sale_items_count > 0:
                 # Query from sale_items table - each sale_item represents one actual transaction
-                # Do NOT aggregate by batch, show exactly what was sold
+                # Show exactly what was sold with correct batch information
                 query = """
                     SELECT 
                         si.product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         COALESCE(si.hsn_code, '') as hsn_code,
-                        CASE 
-                            WHEN si.product_id IS NOT NULL THEN
-                                COALESCE(
-                                    (SELECT batch_number FROM batches 
-                                     WHERE product_id = si.product_id 
-                                     AND quantity >= 0 
-                                     ORDER BY expiry_date ASC NULLS LAST LIMIT 1),
-                                    ''
-                                )
-                            ELSE ''
-                        END as batch_number,
-                        CASE 
-                            WHEN si.product_id IS NOT NULL THEN
-                                COALESCE(
-                                    (SELECT expiry_date FROM batches 
-                                     WHERE product_id = si.product_id 
-                                     AND quantity >= 0 
-                                     ORDER BY expiry_date ASC NULLS LAST LIMIT 1),
-                                    ''
-                                )
-                            ELSE ''
-                        END as expiry_date,
+                        COALESCE(si.batch_number, '') as batch_number,
+                        COALESCE(si.expiry_date, '') as expiry_date,
                         si.quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         si.price as rate,
@@ -653,10 +633,10 @@ def generate_invoice(invoice_data, save_path):
                     WHERE si.sale_id = ?
                     ORDER BY si.id
                 """
-                print(f"DEBUG: Executing aggregated sale_items query with sale_id: {invoice_id}")
+                print(f"DEBUG: Executing individual sale_items query with sale_id: {invoice_id}")
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(f"DEBUG: Query returned {len(items)} aggregated items from sale_items")
+                print(f"DEBUG: Query returned {len(items)} individual items from sale_items")
             
             # If still no items, try alternative approach
             if not items:
