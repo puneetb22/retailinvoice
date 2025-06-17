@@ -4007,15 +4007,19 @@ class SalesFrame(tk.Frame):
                 tax_amount = discounted_amount * (tax_rate_decimal / Decimal('100'))
                 
                 # Insert sale item - convert any Decimal values to float for SQLite
-                # Debug output to verify HSN code
+                # Debug output to verify HSN code and batch info
                 hsn_code = item.get("hsn_code", "")
-                print(f"Item: {item['name']}, HSN code before insertion: '{hsn_code}'")
+                batch_number = item.get("batch_number", "")
+                expiry_date = item.get("expiry_date", "")
+                print(f"Item: {item['name']}, HSN: '{hsn_code}', Batch: '{batch_number}', Expiry: '{expiry_date}'")
                 
                 sale_item_id = db.insert("sale_items", {
                     "sale_id": sale_id,
                     "product_id": item["product_id"],
                     "product_name": item["name"],
                     "hsn_code": hsn_code,
+                    "batch_number": batch_number,
+                    "expiry_date": expiry_date,
                     "quantity": float(item["quantity"]),
                     "price": float(product_price),
                     "discount_percent": float(item["discount"]),
@@ -4200,29 +4204,22 @@ class SalesFrame(tk.Frame):
                 messagebox.showerror("Error", "Could not find sale details for invoice generation!")
                 return
             
-            # Get sale items with HSN code
+            # Get sale items with HSN code and batch information
             items = db.fetchall("""
-                SELECT si.*, 
-                       CASE WHEN si.hsn_code IS NOT NULL AND si.hsn_code != '' 
-                            THEN si.hsn_code 
-                            ELSE p.hsn_code 
-                       END as resolved_hsn_code,
-                       p.manufacturer, 
-                       p.unit,
-                       p.batch_no,
-                       p.expiry_date,
-                       b.batch_number as batch_from_batch,
-                       b.company_name,
-                       b.expiry_date as batch_expiry
+                SELECT si.product_name,
+                       COALESCE(p.manufacturer, '') as company_name,
+                       COALESCE(si.hsn_code, p.hsn_code, '') as hsn_code,
+                       COALESCE(si.batch_number, '') as batch_number,
+                       COALESCE(si.expiry_date, '') as expiry_date,
+                       si.quantity,
+                       COALESCE(p.unit, 'pcs') as unit,
+                       si.price as rate,
+                       COALESCE(si.discount_percent, 0) as discount,
+                       si.total as amount
                 FROM sale_items si
                 LEFT JOIN products p ON si.product_id = p.id
-                LEFT JOIN (
-                    SELECT * FROM batches 
-                    WHERE quantity > 0
-                    ORDER BY expiry_date ASC
-                ) b ON si.product_id = b.product_id
                 WHERE si.sale_id = ?
-                GROUP BY si.id
+                ORDER BY si.id
             """, (sale_id,))
             
             # Get store info
@@ -4245,6 +4242,7 @@ class SalesFrame(tk.Frame):
             
             invoice_data = {
                 "invoice_number": invoice_number,
+                "invoice_id": sale_id,
                 "date": formatted_date,
                 "time": formatted_time,
                 "store_info": {
@@ -4261,7 +4259,21 @@ class SalesFrame(tk.Frame):
                     "village": sale[16],  # customer_village
                     "gstin": sale[17]   # customer_gstin
                 },
-                "items": [],
+                "items": [
+                    {
+                        "name": item[0],
+                        "company": item[1],
+                        "hsn_code": item[2],
+                        "batch_no": item[3],
+                        "expiry_date": item[4],
+                        "quantity": item[5],
+                        "unit": item[6],
+                        "price": item[7],
+                        "discount": item[8],
+                        "total": item[9]
+                    }
+                    for item in items
+                ],
                 "payment": {
                     "subtotal": sale[3],  # subtotal
                     "discount": sale[4],  # discount
