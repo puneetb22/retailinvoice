@@ -1,0 +1,118 @@
+Starting POS application...
+Schema update completed successfully
+DEBUG parse_currency input: '₹750.00', type: <class 'str'>
+DEBUG parse_currency string before cleaning: '₹750.00'
+DEBUG parse_currency after cleaning: '750.00'
+DEBUG parse_currency final result: 750.00
+DEBUG: Added new cart item with ID: 1
+DEBUG: Reserved 1 units of product 7, total reserved: 1
+DEBUG parse_currency input: '₹750.00', type: <class 'str'>
+DEBUG parse_currency string before cleaning: '₹750.00'
+DEBUG parse_currency after cleaning: '750.00'
+DEBUG parse_currency final result: 750.00
+DEBUG: Added new cart item with ID: 2
+DEBUG: Reserved 1 units of product 7, total reserved: 2
+DEBUG parse_currency input: '₹380.00', type: <class 'str'>
+DEBUG parse_currency string before cleaning: '₹380.00'
+DEBUG parse_currency after cleaning: '380.00'
+DEBUG parse_currency final result: 380.00
+DEBUG: Added new cart item with ID: 3
+DEBUG: Reserved 1 units of product 2, total reserved: 1
+DEBUG parse_currency input: '₹500.00', type: <class 'str'>
+DEBUG parse_currency string before cleaning: '₹500.00'
+DEBUG parse_currency after cleaning: '500.00'
+DEBUG parse_currency final result: 500.00
+DEBUG: Added new cart item with ID: 4
+DEBUG: Reserved 1 units of product 1, total reserved: 1
+Using rounded total for payment: 2840.6000 -> 2680 (adjustment: -160.6000)
+Original total: 2680.00, Rounded total: 2680, Adjustment: 0.00
+Item: Hybrid Maize Seeds, HSN code before insertion: '1005'
+Insert error: table invoice_items has no column named hsn_code
+Item: Hybrid Maize Seeds, HSN code before insertion: '1005'
+Insert error: table invoice_items has no column named hsn_code
+Item: General Insecticide, HSN code before insertion: '3808'
+Insert error: table invoice_items has no column named hsn_code
+Item: Urea Fertilizer, HSN code before insertion: '3102'
+Insert error: table invoice_items has no column named hsn_code
+Database error: no such column: p.batch_no
+All settings in database:
+  ID: 1, Key: shop_name, Value: Baliraja Krushi Kendra
+  ID: 2, Key: shop_address, Value: Main Road, Maharashtra
+  ID: 3, Key: shop_phone, Value: +91 1234567890
+  ID: 4, Key: shop_gst, Value: 27AABCU9603R1ZX
+  ID: 5, Key: invoice_prefix, Value: AGT
+  ID: 6, Key: invoice_template, Value: default
+  ID: 7, Key: low_stock_threshold, Value: 10
+  ID: 8, Key: version, Value: 1.0.0
+  ID: 9, Key: product_categories, Value: Fertilizers,Pesticides,Seeds,Equipment,Other
+  ID: 10, Key: vendors, Value: Mahindra Agri,IFFCO,Rallis India,UPL Limited,Syngenta,Bayer CropScience,Godrej Agrovet
+  ID: 11, Key: shop_email, Value: info@agritech.com
+  ID: 12, Key: shop_laid_no, Value: L-12345-67890
+  ID: 13, Key: shop_lcsd_no, Value: C-12345-67890
+  ID: 14, Key: shop_lfrd_no, Value: F-12345-67890
+  ID: 15, Key: state_name, Value: Maharashtra
+  ID: 16, Key: state_code, Value: 27
+  ID: 17, Key: terms_conditions, Value: Goods once sold cannot be returned. Payment due within 30 days.
+  ID: 18, Key: app_theme, Value: light
+All retrieved settings:
+  Key: shop_name, Value: Baliraja Krushi Kendra
+  Key: shop_address, Value: Main Road, Maharashtra
+  Key: shop_phone, Value: +91 1234567890
+  Key: shop_gst, Value: 27AABCU9603R1ZX
+  Key: invoice_prefix, Value: AGT
+  Key: invoice_template, Value: default
+  Key: low_stock_threshold, Value: 10
+  Key: version, Value: 1.0.0
+  Key: product_categories, Value: Fertilizers,Pesticides,Seeds,Equipment,Other
+  Key: vendors, Value: Mahindra Agri,IFFCO,Rallis India,UPL Limited,Syngenta,Bayer CropScience,Godrej Agrovet
+  Key: shop_email, Value: info@agritech.com
+  Key: shop_laid_no, Value: L-12345-67890
+  Key: shop_lcsd_no, Value: C-12345-67890
+  Key: shop_lfrd_no, Value: F-12345-67890
+  Key: state_name, Value: Maharashtra
+  Key: state_code, Value: 27
+  Key: terms_conditions, Value: Goods once sold cannot be returned. Payment due within 30 days.
+  Key: app_theme, Value: light
+Store info being used for invoice:
+  shop_name: Baliraja Krushi Kendra
+  shop_address: Main Road, Maharashtra
+  shop_phone: +91 1234567890
+  shop_gst: 27AABCU9603R1ZX
+  invoice_prefix: AGT
+  invoice_template: default
+  low_stock_threshold: 10
+  version: 1.0.0
+  product_categories: Fertilizers,Pesticides,Seeds,Equipment,Other
+  vendors: Mahindra Agri,IFFCO,Rallis India,UPL Limited,Syngenta,Bayer CropScience,Godrej Agrovet
+  shop_email: info@agritech.com
+  shop_laid_no: L-12345-67890
+  shop_lcsd_no: C-12345-67890
+  shop_lfrd_no: F-12345-67890
+  state_name: Maharashtra
+  state_code: 27
+  terms_conditions: Goods once sold cannot be returned. Payment due within 30 days.
+  app_theme: light
+Debug - Invoice date from data: 18/06/2025
+Debug - Parsed date object: 2025-06-18 00:00:00
+Debug - Final invoice date: 18/06/2025
+Debug - Final invoice time:  01:12 AM
+DEBUG: Looking for items for invoice_id: '' (type: <class 'str'>)
+DEBUG: invoice_id is empty, trying to find by invoice_number
+DEBUG: Found invoice_id 72 for invoice_number 25-26/AGT-051
+DEBUG: invoice_items schema: ['id', 'invoice_id', 'product_id', 'batch_number', 'quantity', 'price_per_unit', 'discount_percentage', 'tax_percentage', 'total_price']
+DEBUG: sale_items schema: ['id', 'sale_id', 'product_id', 'product_name', 'hsn_code', 'quantity', 'price', 'discount_percent', 'tax_percentage', 'tax_amount', 'total']
+DEBUG: Found sale_id 51 for invoice_number 25-26/AGT-051
+DEBUG: Using sale_id 51 instead of invoice_id 72 for item lookup
+DEBUG: Found 0 items in invoice_items, 4 items in sale_items
+DEBUG: Sample sale_items data: (115, 51, 7, 'Hybrid Maize Seeds', '1005', 1, 750.0, 0.0, 5.0, 52.5, 1050.0)
+DEBUG: Executing individual sale_items query with sale_id: 51
+Error fetching invoice items: no such column: si.batch_number
+Traceback (most recent call last):
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\utils\pdf_invoice_generator.py", line 637, in generate_invoice
+    cursor.execute(query, (invoice_id,))
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such column: si.batch_number
+WARNING: No formatted items found, creating placeholder
+DEBUG: Created 1 rows for items table
+DEBUG: First row data: ['1', 'No items found', '', '', '', '', '0', '', 'Rs.0.00', '', 'Rs.0.00']
+DEBUG: Clearing reserved inventory after successful sale: {'7': 2, '2': 1, '1': 1}
