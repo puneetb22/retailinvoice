@@ -1,0 +1,82 @@
+  if invoice_items_count > 0:
+                cursor.execute("SELECT * FROM invoice_items WHERE invoice_id = ? LIMIT 1", (invoice_id,))
+                sample_ii = cursor.fetchone()
+                print(f"DEBUG: Sample invoice_items data: {sample_ii}")
+
+            if sale_items_count > 0:
+                cursor.execute("SELECT * FROM sale_items WHERE sale_id = ? LIMIT 1", (invoice_id,))
+                sample_si = cursor.fetchone()
+                print(f"DEBUG: Sample sale_items data: {sample_si}")
+
+            if invoice_items_count > 0:
+                # Query from invoice_items table WITHOUT aggregation to preserve individual batch details
+                # First check what columns exist in invoice_items
+                try:
+                    cursor.execute("PRAGMA table_info(invoice_items)")
+                    invoice_items_cols = {col[1] for col in cursor.fetchall()}
+                    print(f"DEBUG: Available invoice_items columns: {invoice_items_cols}")
+                except Exception as e:
+                    print(f"DEBUG: Error checking invoice_items schema: {e}")
+                    invoice_items_cols = set()
+
+                # Build HSN code selection based on available columns
+                hsn_selection = ""
+                if 'hsn_code' in invoice_items_cols:
+                    hsn_selection = "COALESCE(ii.hsn_code, p.hsn_code, '') as hsn_code"
+                else:
+                    hsn_selection = "COALESCE(p.hsn_code, '') as hsn_code"
+
+                query = f"""
+                    SELECT 
+                        COALESCE(p.name, 'Unknown Product') as product_name,
+                        COALESCE(p.manufacturer, '') as company_name,
+                        {hsn_selection},
+                        COALESCE(ii.batch_number, b.batch_number, '') as batch_number,
+                        COALESCE(b.expiry_date, 
+                            (SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
+                             AND batch_number = COALESCE(ii.batch_number, b.batch_number)
+                             LIMIT 1), 
+                            ''
+                        ) as expiry_date,
+                        ii.quantity as quantity,
+                        COALESCE(p.unit, 'pcs') as unit,
+                        ii.price_per_unit as rate,
+                        COALESCE(ii.discount_percentage, 0) as discount,
+                        ii.total_price as amount,
+                        ii.product_id
+                    FROM invoice_items ii
+                    LEFT JOIN products p ON ii.product_id = p.id
+                    LEFT JOIN batches b ON ii.product_id = b.product_id AND ii.batch_number = b.batch_number
+                    WHERE ii.invoice_id = ?
+                    ORDER BY ii.id
+                """
+                print(f"DEBUG: Executing individual invoice_items query with invoice_id: {invoice_id}")
+                cursor.execute(query, (invoice_id,))
+                items = cursor.fetchall()
+                print(f"DEBUG: Query returned {len(items)} individual items from invoice_items")
+
+            elif sale_items_count > 0:
+                # Query from sale_items table - each sale_item represents one actual transaction
+                # Show exactly what was sold with correct batch information
+                query = """
+                    SELECT 
+                        si.product_name,
+                        COALESCE(p.manufacturer, '') as company_name,
+                        COALESCE(si.hsn_code, p.hsn_code, '') as hsn_code,
+                        COALESCE(si.batch_number, '') as batch_number,
+                        COALESCE(si.expiry_date, '') as expiry_date,
+                        si.quantity,
+                        COALESCE(p.unit, 'pcs') as unit,
+                        si.price as rate,
+                        COALESCE(si.discount_percent, 0) as discount,
+                        si.total as amount,
+                        si.product_id
+                    FROM sale_items si
+                    LEFT JOIN products p ON si.product_id = p.id
+                    WHERE si.sale_id = ?
+                    ORDER BY si.id
+                """
+                print(f"DEBUG: Executing individual sale_items query with sale_id: {invoice_id}")
+                cursor.execute(query, (invoice_id,))
+                items = cursor.fetchall()
+                print(f"DEBUG: Query returned {len(items)} individual items from sale_items")
