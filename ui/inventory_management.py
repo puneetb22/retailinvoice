@@ -2143,12 +2143,13 @@ class InventoryManagementFrame(tk.Frame):
                 widget.destroy()
             
             # Get existing batches with proper error handling for missing selling_price column
+            # For Stock Entry form, show ALL batches including those with 0 stock
             try:
                 query = """
                     SELECT id, batch_number, quantity, manufacturing_date, expiry_date, 
                            cost_price, COALESCE(selling_price, 0) as selling_price
                     FROM batches 
-                    WHERE product_id = ? AND quantity > 0
+                    WHERE product_id = ?
                     ORDER BY expiry_date ASC, manufacturing_date ASC
                 """
                 batches = self.controller.db.fetchall(query, (product_id,))
@@ -2159,7 +2160,7 @@ class InventoryManagementFrame(tk.Frame):
                     SELECT id, batch_number, quantity, manufacturing_date, expiry_date, 
                            cost_price, 0 as selling_price
                     FROM batches 
-                    WHERE product_id = ? AND quantity > 0
+                    WHERE product_id = ?
                     ORDER BY expiry_date ASC, manufacturing_date ASC
                 """
                 batches = self.controller.db.fetchall(query, (product_id,))
@@ -2184,9 +2185,10 @@ class InventoryManagementFrame(tk.Frame):
                     if selling_price == 0 or selling_price is None:
                         selling_price = cost_price
                     
-                    # Format display string
+                    # Format display string with special marking for zero stock
                     exp_str = f" (Exp: {exp_date})" if exp_date else " (No Expiry)"
-                    display_str = f"{batch_number}{exp_str} - Qty: {quantity} - ₹{selling_price:.2f}"
+                    stock_status = " [OUT OF STOCK]" if quantity == 0 else ""
+                    display_str = f"{batch_number}{exp_str} - Qty: {quantity}{stock_status} - ₹{selling_price:.2f}"
                     batch_options.append(display_str)
                     
                     # Store batch data
@@ -2200,12 +2202,13 @@ class InventoryManagementFrame(tk.Frame):
                         'selling_price': selling_price
                     }
                     
-                    # Add batch info label
+                    # Add batch info label with color coding for zero stock
+                    text_color = COLORS["danger"] if quantity == 0 else COLORS["text_primary"]
                     batch_info = tk.Label(self.existing_batches_frame,
                                         text=f"• {display_str}",
                                         font=FONTS["small"],
                                         bg=COLORS["bg_secondary"],
-                                        fg=COLORS["text_primary"],
+                                        fg=text_color,
                                         anchor="w")
                     batch_info.pack(fill=tk.X, padx=10, pady=1)
             else:
