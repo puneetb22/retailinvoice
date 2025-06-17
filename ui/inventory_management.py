@@ -454,7 +454,7 @@ class InventoryManagementFrame(tk.Frame):
         # Create treeview
         self.batch_tree = ttk.Treeview(tree_frame, 
                                      columns=("ID", "Product", "Batch", "Qty", "MFG Date", 
-                                            "Expiry", "Purchase Date"),
+                                            "Expiry", "Purchase Date", "Cost Price", "Selling Price"),
                                      show="headings",
                                      yscrollcommand=scrollbar.set)
 
@@ -469,6 +469,8 @@ class InventoryManagementFrame(tk.Frame):
         self.batch_tree.heading("MFG Date", text="MFG Date")
         self.batch_tree.heading("Expiry", text="Expiry Date")
         self.batch_tree.heading("Purchase Date", text="Purchase Date")
+        self.batch_tree.heading("Cost Price", text="Cost Price")
+        self.batch_tree.heading("Selling Price", text="Selling Price")
 
         # Set column widths
         self.batch_tree.column("ID", width=50)
@@ -744,16 +746,31 @@ class InventoryManagementFrame(tk.Frame):
         for item in self.batch_tree.get_children():
             self.batch_tree.delete(item)
 
-        # Query with error handling for selling_price column
+        # Check if selling_price column exists in batches table
         try:
-            # Try to query with selling_price column
-            query = """
-                SELECT b.id, p.name, b.batch_number, b.quantity, 
-                       b.manufacturing_date, b.expiry_date, b.purchase_date,
-                       b.cost_price, COALESCE(b.selling_price, p.selling_price) as selling_price
-                FROM batches b
-                JOIN products p ON b.product_id = p.id
-            """
+            # Check table schema
+            schema_info = self.controller.db.fetchall("PRAGMA table_info(batches)")
+            column_names = [col[1] for col in schema_info]
+            has_selling_price = 'selling_price' in column_names
+            
+            if has_selling_price:
+                # Query with selling_price column
+                query = """
+                    SELECT b.id, p.name, b.batch_number, b.quantity, 
+                           b.manufacturing_date, b.expiry_date, b.purchase_date,
+                           b.cost_price, COALESCE(b.selling_price, p.selling_price) as selling_price
+                    FROM batches b
+                    JOIN products p ON b.product_id = p.id
+                """
+            else:
+                # Query without selling_price column, use product selling_price
+                query = """
+                    SELECT b.id, p.name, b.batch_number, b.quantity, 
+                           b.manufacturing_date, b.expiry_date, b.purchase_date,
+                           b.cost_price, p.selling_price
+                    FROM batches b
+                    JOIN products p ON b.product_id = p.id
+                """
             
             # Add filter if not showing all
             if not show_all and self.batch_product_var.get() and ":" in self.batch_product_var.get():
@@ -765,14 +782,14 @@ class InventoryManagementFrame(tk.Frame):
             # Get batches from database
             batches = self.controller.db.fetchall(query)
             
-            # Insert into treeview with price columns
+            # Insert into treeview
             for batch in batches:
                 # Format dates
                 mfg_date = batch[4] if batch[4] else ""
                 exp_date = batch[5] if batch[5] else ""
                 purchase_date = batch[6] if batch[6] else ""
                 cost_price = f"₹{batch[7]:.2f}" if batch[7] else "₹0.00"
-                selling_price = f"₹{batch[8]:.2f}" if batch[8] else "₹0.00"
+                selling_price = f"₹{batch[8]:.2f}" if len(batch) > 8 and batch[8] else "₹0.00"
 
                 row = (
                     batch[0],
@@ -789,12 +806,11 @@ class InventoryManagementFrame(tk.Frame):
                 self.batch_tree.insert("", "end", values=row)
                 
         except Exception as e:
-            print(f"Error loading batches with selling_price: {e}")
-            # Fallback query without selling_price column
+            print(f"Error loading batches: {e}")
+            # Fallback to basic query without price columns
             query = """
                 SELECT b.id, p.name, b.batch_number, b.quantity, 
-                       b.manufacturing_date, b.expiry_date, b.purchase_date,
-                       b.cost_price
+                       b.manufacturing_date, b.expiry_date, b.purchase_date
                 FROM batches b
                 JOIN products p ON b.product_id = p.id
             """
@@ -809,13 +825,12 @@ class InventoryManagementFrame(tk.Frame):
             # Get batches from database
             batches = self.controller.db.fetchall(query)
 
-            # Insert into treeview without selling price
+            # Insert into treeview with default prices
             for batch in batches:
                 # Format dates
                 mfg_date = batch[4] if batch[4] else ""
                 exp_date = batch[5] if batch[5] else ""
                 purchase_date = batch[6] if batch[6] else ""
-                cost_price = f"₹{batch[7]:.2f}" if len(batch) > 7 and batch[7] else "₹0.00"
 
                 row = (
                     batch[0],
@@ -825,8 +840,8 @@ class InventoryManagementFrame(tk.Frame):
                     mfg_date,
                     exp_date,
                     purchase_date,
-                    cost_price,
-                    "₹0.00"  # Default selling price
+                    "₹0.00",  # Default cost price
+                    "₹0.00"   # Default selling price
                 )
 
                 self.batch_tree.insert("", "end", values=row)

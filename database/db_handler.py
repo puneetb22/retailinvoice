@@ -334,23 +334,30 @@ class DBHandler:
 
             # Check if selling_price column exists in batches table
             try:
-                self.execute("SELECT selling_price FROM batches LIMIT 1")
-            except:
-                # Column doesn't exist, add it
-                print("Adding selling_price column to batches table...")
-                self.execute("ALTER TABLE batches ADD COLUMN selling_price REAL DEFAULT 0")
+                # Check table schema to see if selling_price column exists
+                batch_columns_info = self.fetchall("PRAGMA table_info(batches)")
+                batch_column_names = [col[1] for col in batch_columns_info]
+                
+                if 'selling_price' not in batch_column_names:
+                    # Column doesn't exist, add it
+                    print("Adding selling_price column to batches table...")
+                    self.execute("ALTER TABLE batches ADD COLUMN selling_price REAL DEFAULT 0")
 
-                # Copy selling price from products to existing batches
-                self.execute("""
-                    UPDATE batches 
-                    SET selling_price = (
-                        SELECT selling_price 
-                        FROM products 
-                        WHERE products.id = batches.product_id
-                    )
-                    WHERE selling_price = 0 OR selling_price IS NULL
-                """)
-                self.commit()
+                    # Copy selling price from products to existing batches
+                    self.execute("""
+                        UPDATE batches 
+                        SET selling_price = (
+                            SELECT selling_price 
+                            FROM products 
+                            WHERE products.id = batches.product_id
+                        )
+                        WHERE selling_price = 0 OR selling_price IS NULL
+                    """)
+                    self.commit()
+                    print("Successfully added selling_price column to batches table")
+            except Exception as e:
+                print(f"Error handling selling_price column: {e}")
+                # Continue without failing the entire schema update
 
             # Commit all schema changes
             self.commit()
