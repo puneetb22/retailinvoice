@@ -583,11 +583,27 @@ def generate_invoice(invoice_data, save_path):
 
             if invoice_items_count > 0:
                 # Query from invoice_items table WITHOUT aggregation to preserve individual batch details
-                query = """
+                # First check what columns exist in invoice_items
+                try:
+                    cursor.execute("PRAGMA table_info(invoice_items)")
+                    invoice_items_cols = {col[1] for col in cursor.fetchall()}
+                    print(f"DEBUG: Available invoice_items columns: {invoice_items_cols}")
+                except Exception as e:
+                    print(f"DEBUG: Error checking invoice_items schema: {e}")
+                    invoice_items_cols = set()
+                
+                # Build HSN code selection based on available columns
+                hsn_selection = ""
+                if 'hsn_code' in invoice_items_cols:
+                    hsn_selection = "COALESCE(ii.hsn_code, p.hsn_code, '') as hsn_code"
+                else:
+                    hsn_selection = "COALESCE(p.hsn_code, '') as hsn_code"
+                
+                query = f"""
                     SELECT 
                         COALESCE(p.name, 'Unknown Product') as product_name,
                         COALESCE(p.manufacturer, '') as company_name,
-                        COALESCE(ii.hsn_code, p.hsn_code, '') as hsn_code,
+                        {hsn_selection},
                         COALESCE(ii.batch_number, b.batch_number, '') as batch_number,
                         COALESCE(b.expiry_date, 
                             (SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
@@ -615,13 +631,43 @@ def generate_invoice(invoice_data, save_path):
             elif sale_items_count > 0:
                 # Query from sale_items table - each sale_item represents one actual transaction
                 # Show exactly what was sold with correct batch information
-                query = """
+                # First check what columns exist in sale_items
+                try:
+                    cursor.execute("PRAGMA table_info(sale_items)")
+                    sale_items_cols = {col[1] for col in cursor.fetchall()}
+                    print(f"DEBUG: Available sale_items columns: {sale_items_cols}")
+                    
+                    cursor.execute("PRAGMA table_info(products)")
+                    products_cols = {col[1] for col in cursor.fetchall()}
+                    print(f"DEBUG: Available products columns: {products_cols}")
+                except Exception as e:
+                    print(f"DEBUG: Error checking table schemas: {e}")
+                    sale_items_cols = set()
+                    products_cols = set()
+                
+                # Build query based on available columns
+                batch_column = ""
+                expiry_column = ""
+                
+                # Check for batch information in sale_items
+                if 'batch_number' in sale_items_cols:
+                    batch_column = "COALESCE(si.batch_number, '') as batch_number"
+                else:
+                    batch_column = "'' as batch_number"
+                
+                # Check for expiry information
+                if 'expiry_date' in sale_items_cols:
+                    expiry_column = "COALESCE(si.expiry_date, '') as expiry_date"
+                else:
+                    expiry_column = "'' as expiry_date"
+                
+                query = f"""
                     SELECT 
                         si.product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         COALESCE(si.hsn_code, '') as hsn_code,
-                        COALESCE(si.batch_number, '') as batch_number,
-                        COALESCE(si.expiry_date, '') as expiry_date,
+                        {batch_column},
+                        {expiry_column},
                         si.quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         si.price as rate,
