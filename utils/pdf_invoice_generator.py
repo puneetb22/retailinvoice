@@ -613,29 +613,44 @@ def generate_invoice(invoice_data, save_path):
                 print(f"DEBUG: Query returned {len(items)} aggregated items from invoice_items")
                 
             elif sale_items_count > 0:
-                # Query from sale_items table with proper batch number handling and aggregation
+                # Query from sale_items table - each sale_item represents one actual transaction
+                # Do NOT aggregate by batch, show exactly what was sold
                 query = """
                     SELECT 
                         si.product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         COALESCE(si.hsn_code, '') as hsn_code,
-                        COALESCE(b.batch_number, '') as batch_number,
-                        COALESCE(b.expiry_date, 
-                            (SELECT expiry_date FROM batches WHERE product_id = si.product_id 
-                             ORDER BY expiry_date DESC LIMIT 1), 
-                            ''
-                        ) as expiry_date,
-                        SUM(si.quantity) as quantity,
+                        CASE 
+                            WHEN si.product_id IS NOT NULL THEN
+                                COALESCE(
+                                    (SELECT batch_number FROM batches 
+                                     WHERE product_id = si.product_id 
+                                     AND quantity >= 0 
+                                     ORDER BY expiry_date ASC NULLS LAST LIMIT 1),
+                                    ''
+                                )
+                            ELSE ''
+                        END as batch_number,
+                        CASE 
+                            WHEN si.product_id IS NOT NULL THEN
+                                COALESCE(
+                                    (SELECT expiry_date FROM batches 
+                                     WHERE product_id = si.product_id 
+                                     AND quantity >= 0 
+                                     ORDER BY expiry_date ASC NULLS LAST LIMIT 1),
+                                    ''
+                                )
+                            ELSE ''
+                        END as expiry_date,
+                        si.quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         si.price as rate,
                         COALESCE(si.discount_percent, 0) as discount,
-                        SUM(si.total) as amount,
+                        si.total as amount,
                         si.product_id
                     FROM sale_items si
                     LEFT JOIN products p ON si.product_id = p.id
-                    LEFT JOIN batches b ON si.product_id = b.product_id
                     WHERE si.sale_id = ?
-                    GROUP BY si.product_id, si.price, si.discount_percent, COALESCE(b.batch_number, '')
                     ORDER BY si.id
                 """
                 print(f"DEBUG: Executing aggregated sale_items query with sale_id: {invoice_id}")

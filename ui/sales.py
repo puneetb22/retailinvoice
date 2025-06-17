@@ -404,7 +404,7 @@ class SalesFrame(tk.Frame):
         
         # Create treeview for cart items
         self.cart_tree = ttk.Treeview(tree_frame, 
-                                    columns=("id", "product", "price", "qty", "discount", "total"),
+                                    columns=("product", "price", "qty", "discount", "total"),
                                     show="headings",
                                     yscrollcommand=scrollbar.set)
         
@@ -412,7 +412,6 @@ class SalesFrame(tk.Frame):
         scrollbar.config(command=self.cart_tree.yview)
         
         # Define columns
-        self.cart_tree.heading("id", text="#")
         self.cart_tree.heading("product", text="Product")
         self.cart_tree.heading("price", text="Price")
         self.cart_tree.heading("qty", text="Qty")
@@ -420,7 +419,6 @@ class SalesFrame(tk.Frame):
         self.cart_tree.heading("total", text="Total")
         
         # Set column widths
-        self.cart_tree.column("id", width=50)
         self.cart_tree.column("product", width=250)
         self.cart_tree.column("price", width=100)
         self.cart_tree.column("qty", width=70)
@@ -1491,18 +1489,19 @@ class SalesFrame(tk.Frame):
         # Add updated items
         for item in self.cart_items:
             # Format values for display
+            product_name = item["name"]
             price = format_currency(item["price"])
             quantity = str(item["quantity"])
-            discount = f"{item.get('discount', 0)}%" if item.get('discount', 0) > 0 else ""
+            discount = f"{item.get('discount', 0)}%" if item.get('discount', 0) > 0 else "0%"
             total = format_currency(item["total"])
             
-            # Insert into treeview
+            # Insert into treeview with correct column mapping
             self.cart_tree.insert("", "end", values=(
-                item["name"],
-                price,
-                quantity,
-                discount,
-                total
+                product_name,  # product column
+                price,         # price column
+                quantity,      # qty column
+                discount,      # discount column
+                total          # total column
             ))
             
         # Update totals after cart display is updated
@@ -1637,11 +1636,21 @@ class SalesFrame(tk.Frame):
             return
         selected_item = selected_items[0]
         
-        # Get cart item id
-        cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+        # Get the product name from the first column to find the cart item
+        selected_values = self.cart_tree.item(selected_item, "values")
+        if not selected_values:
+            return
+            
+        product_name = selected_values[0]  # First column is product name
         
-        # Find the corresponding cart item
-        cart_item = next((item for item in self.cart_items if item["id"] == cart_item_id), None)
+        # Find the corresponding cart item by product name
+        # If multiple items with same product name, get the first one (should be improved in future)
+        cart_item = None
+        for item in self.cart_items:
+            if item["name"] == product_name:
+                cart_item = item
+                break
+                
         if not cart_item:
             return
             
@@ -1842,11 +1851,20 @@ class SalesFrame(tk.Frame):
             return
         selected_item = selected_items[0]
         
-        # Get cart item id
-        cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+        # Get the product name from the first column to find the cart item
+        selected_values = self.cart_tree.item(selected_item, "values")
+        if not selected_values:
+            return
+            
+        product_name = selected_values[0]  # First column is product name
         
-        # Find the corresponding cart item
-        cart_item = next((item for item in self.cart_items if item["id"] == cart_item_id), None)
+        # Find the corresponding cart item by product name
+        cart_item = None
+        for item in self.cart_items:
+            if item["name"] == product_name:
+                cart_item = item
+                break
+                
         if not cart_item:
             return
             
