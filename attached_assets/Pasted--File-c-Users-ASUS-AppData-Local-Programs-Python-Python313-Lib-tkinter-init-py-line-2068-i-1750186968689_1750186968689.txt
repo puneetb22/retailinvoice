@@ -1,0 +1,71 @@
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1641, in edit_cart_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1846, in remove_selected_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1846, in remove_selected_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1641, in edit_cart_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1641, in edit_cart_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1846, in remove_selected_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1641, in edit_cart_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1641, in edit_cart_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 1641, in edit_cart_item
+    cart_item_id = int(self.cart_tree.item(selected_item, "values")[0])
+ValueError: invalid literal for int() with base 10: 'Hybrid Maize Seeds'
+Delete error: FOREIGN KEY constraint failed
