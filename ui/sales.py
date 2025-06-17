@@ -3984,14 +3984,8 @@ class SalesFrame(tk.Frame):
             
             # Store sale items
             for item in self.cart_items:
-                # Get product price from database to ensure data integrity
-                product_price = item["price"]
-                if item["product_id"]:
-                    product_info = db.fetchone("""
-                        SELECT selling_price FROM products WHERE id = ?
-                    """, (item["product_id"],))
-                    if product_info:
-                        product_price = product_info[0]
+                # Use the actual price from cart item (batch-specific price)
+                actual_price = item["price"]  # This contains the batch-specific price</old_str>
                 
                 # Calculate item tax with proper Decimal handling
                 tax_rate = item.get("tax_percentage", 18)  # Default 18% if not specified
@@ -4011,7 +4005,8 @@ class SalesFrame(tk.Frame):
                 hsn_code = item.get("hsn_code", "")
                 batch_number = item.get("batch_number", "")
                 expiry_date = item.get("expiry_date", "")
-                print(f"Item: {item['name']}, HSN code: '{hsn_code}', Batch: '{batch_number}', Expiry: '{expiry_date}'")
+                actual_price = float(item["price"])  # This should be the batch-specific price
+                print(f"Item: {item['name']}, HSN code: '{hsn_code}', Batch: '{batch_number}', Expiry: '{expiry_date}', Rate: {actual_price}")
                 
                 sale_item_id = db.insert("sale_items", {
                     "sale_id": sale_id,
@@ -4021,12 +4016,12 @@ class SalesFrame(tk.Frame):
                     "batch_number": batch_number,
                     "expiry_date": expiry_date,
                     "quantity": float(item["quantity"]),
-                    "price": float(item["price"]),  # Use the actual batch-specific price from cart item
+                    "price": actual_price,  # Use the actual batch-specific price from cart item
                     "discount_percent": float(item["discount"]),
                     "tax_percentage": float(tax_rate),
                     "tax_amount": float(tax_amount),
                     "total": float(item["total"])
-                })
+                })</old_str>
                 
                 # Also add to invoice_items table for compatibility with sales_history view
                 # Check if hsn_code column exists in invoice_items before inserting</old_str>
@@ -4042,11 +4037,11 @@ class SalesFrame(tk.Frame):
                         "product_id": item["product_id"] or 0,  # Use 0 if product_id is None
                         "batch_number": batch_number,  # Pass the actual batch number
                         "quantity": float(item["quantity"]),
-                        "price_per_unit": float(product_price),
+                        "price_per_unit": float(item["price"]),  # Use actual batch-specific price instead of product_price
                         "discount_percentage": float(item["discount"]),
                         "tax_percentage": float(tax_rate),
                         "total_price": float(item["total"])
-                    }
+                    }</old_str>
                     
                     # Only add hsn_code if the column exists
                     if "hsn_code" in col_names:
@@ -4062,11 +4057,11 @@ class SalesFrame(tk.Frame):
                         "product_id": item["product_id"] or 0,
                         "batch_number": batch_number,  # Pass the actual batch number
                         "quantity": float(item["quantity"]),
-                        "price_per_unit": float(product_price),
+                        "price_per_unit": float(item["price"]),  # Use actual batch-specific price
                         "discount_percentage": float(item["discount"]),
                         "tax_percentage": float(tax_rate),
                         "total_price": float(item["total"])
-                    })
+                    })</old_str>
                 
                 # Update inventory for database products
                 if item["product_id"]:
