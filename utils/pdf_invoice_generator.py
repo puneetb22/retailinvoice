@@ -631,43 +631,13 @@ def generate_invoice(invoice_data, save_path):
             elif sale_items_count > 0:
                 # Query from sale_items table - each sale_item represents one actual transaction
                 # Show exactly what was sold with correct batch information
-                # First check what columns exist in sale_items
-                try:
-                    cursor.execute("PRAGMA table_info(sale_items)")
-                    sale_items_cols = {col[1] for col in cursor.fetchall()}
-                    print(f"DEBUG: Available sale_items columns: {sale_items_cols}")
-                    
-                    cursor.execute("PRAGMA table_info(products)")
-                    products_cols = {col[1] for col in cursor.fetchall()}
-                    print(f"DEBUG: Available products columns: {products_cols}")
-                except Exception as e:
-                    print(f"DEBUG: Error checking table schemas: {e}")
-                    sale_items_cols = set()
-                    products_cols = set()
-                
-                # Build query based on available columns
-                batch_column = ""
-                expiry_column = ""
-                
-                # Check for batch information in sale_items
-                if 'batch_number' in sale_items_cols:
-                    batch_column = "COALESCE(si.batch_number, '') as batch_number"
-                else:
-                    batch_column = "'' as batch_number"
-                
-                # Check for expiry information
-                if 'expiry_date' in sale_items_cols:
-                    expiry_column = "COALESCE(si.expiry_date, '') as expiry_date"
-                else:
-                    expiry_column = "'' as expiry_date"
-                
-                query = f"""
+                query = """
                     SELECT 
                         si.product_name,
                         COALESCE(p.manufacturer, '') as company_name,
-                        COALESCE(si.hsn_code, '') as hsn_code,
-                        {batch_column},
-                        {expiry_column},
+                        COALESCE(si.hsn_code, p.hsn_code, '') as hsn_code,
+                        COALESCE(si.batch_number, '') as batch_number,
+                        COALESCE(si.expiry_date, '') as expiry_date,
                         si.quantity,
                         COALESCE(p.unit, 'pcs') as unit,
                         si.price as rate,
@@ -814,10 +784,12 @@ def generate_invoice(invoice_data, save_path):
                     'total': item_total
                 })
 
-                print(f"DEBUG: Processed item {i+1}: {name}, Batch: {batch_no}, Qty: {qty_str}, Price: {price}, Total: {item_total}")
+                print(f"DEBUG: Processed item {i+1}: {name}, Batch: '{batch_no}', Expiry: '{expiry_date}', Qty: {qty_str}, Price: {price}, Total: {item_total}")
 
             except Exception as e:
                 print(f"Error processing item {i}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 # Add a placeholder item to avoid completely empty table
                 formatted_items.append({
                     'name': f"Item {i+1} (Error)",
