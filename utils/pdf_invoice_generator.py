@@ -1,7 +1,4 @@
-Applying the provided changes to the original code to ensure correct invoice generation with batch-specific pricing.
-```
 
-```python
 """
 PDF Invoice Generator for POS system
 Generates invoices matching exactly the shop_bill.pdf template
@@ -196,19 +193,9 @@ def generate_invoice(invoice_data, save_path):
             conn.row_factory = sqlite3.Row  # Set row factory to access by column name
             cursor = conn.cursor()
 
-            # Print all settings first for debugging
-            cursor.execute("SELECT * FROM settings")
-            all_settings = cursor.fetchall()
-            print("All settings in database:")
-            for row in all_settings:
-                print(f"  ID: {row['id']}, Key: {row['key']}, Value: {row['value']}")
-
             # Query the settings table for shop information using the correct column names (key, value)
             cursor.execute("SELECT key, value FROM settings")
             all_db_settings = cursor.fetchall()
-            print("All retrieved settings:")
-            for row in all_db_settings:
-                print(f"  Key: {row['key']}, Value: {row['value']}")
 
             # Create a dictionary from all settings
             store_info = {}
@@ -218,16 +205,10 @@ def generate_invoice(invoice_data, save_path):
             # Close the database connection
             conn.close()
 
-            # Print the store info we're using
-            print("Store info being used for invoice:")
-            for key, value in store_info.items():
-                print(f"  {key}: {value}")
-
         except Exception as e:
             print(f"Error fetching shop info from database: {e}")
             # Fall back to the provided store_info
             store_info = invoice_data.get('store_info', {})
-            print("Using fallback store_info from invoice_data due to error")
 
         # Shop information fields - match exactly to the keys in the settings table
         shop_name = store_info.get('shop_name', 'Agritech Products Shop')
@@ -274,20 +255,13 @@ def generate_invoice(invoice_data, save_path):
         if not invoice_time.startswith(' '):
             invoice_time = ' ' + invoice_time
 
-        # Print debug information
-        print(f"Debug - Invoice date from data: {invoice_data.get('date')}")
-        print(f"Debug - Parsed date object: {date_obj}")
-        print(f"Debug - Final invoice date: {invoice_date}")
-        print(f"Debug - Final invoice time: {invoice_time}")
-
-        # Customer information - Fixed to properly fetch email
+        # Customer information
         customer_name = customer_data.get('name', 'Walk-in Customer')
         customer_phone = customer_data.get('phone', '')
         customer_address = customer_data.get('address', '')
         customer_village = customer_data.get('village', '')
         if customer_village and not customer_village in customer_address:
             customer_address = f"{customer_address}, {customer_village}"
-        # Fix: Properly fetch customer email
         customer_email = customer_data.get('email', '')
         customer_gstin = customer_data.get('gstin', '')
 
@@ -505,7 +479,7 @@ def generate_invoice(invoice_data, save_path):
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
         ]))
 
-        # Get items with proper schema mapping and aggregation
+        # Get items with proper schema mapping and batch-specific rate
         items = []
         total_qty = 0
         formatted_items = []
@@ -515,35 +489,20 @@ def generate_invoice(invoice_data, save_path):
             conn = sqlite3.connect('./pos_data.db')
             cursor = conn.cursor()
 
-            # First, check what tables and columns we actually have
-            print(f"DEBUG: Looking for items for invoice_id: '{invoice_id}' (type: {type(invoice_id)})")
-
             # If invoice_id is empty, try to get it from invoice_number
             if not invoice_id or invoice_id == '':
-                print("DEBUG: invoice_id is empty, trying to find by invoice_number")
                 if invoice_number:
                     # Try to find invoice_id from invoices table
                     cursor.execute("SELECT id FROM invoices WHERE invoice_number = ?", (invoice_number,))
                     result = cursor.fetchone()
                     if result:
                         invoice_id = result[0]
-                        print(f"DEBUG: Found invoice_id {invoice_id} for invoice_number {invoice_number}")
                     else:
                         # Try to find from sales table
                         cursor.execute("SELECT id FROM sales WHERE invoice_number = ?", (invoice_number,))
                         result = cursor.fetchone()
                         if result:
                             invoice_id = result[0]
-                            print(f"DEBUG: Found sale_id {invoice_id} for invoice_number {invoice_number}")
-
-            # Debug: Check table schemas
-            cursor.execute("PRAGMA table_info(invoice_items)")
-            ii_schema = cursor.fetchall()
-            print(f"DEBUG: invoice_items schema: {[col[1] for col in ii_schema]}")
-
-            cursor.execute("PRAGMA table_info(sale_items)")
-            si_schema = cursor.fetchall()
-            print(f"DEBUG: sale_items schema: {[col[1] for col in si_schema]}")
 
             # Check if we should query invoice_items or sale_items
             invoice_items_count = 0
@@ -559,42 +518,19 @@ def generate_invoice(invoice_data, save_path):
 
                 # Also try cross-referencing through sales table if no direct items found
                 if invoice_items_count == 0 and sale_items_count == 0:
-                    # Try to find sale_id that corresponds to this invoice
                     cursor.execute("SELECT id FROM sales WHERE invoice_number = ?", (invoice_number,))
                     sale_result = cursor.fetchone()
                     if sale_result:
                         sale_id = sale_result[0]
-                        print(f"DEBUG: Found sale_id {sale_id} for invoice_number {invoice_number}")
                         cursor.execute("SELECT COUNT(*) FROM sale_items WHERE sale_id = ?", (sale_id,))
                         sale_items_count = cursor.fetchone()[0]
                         if sale_items_count > 0:
-                            # Update invoice_id to use sale_id for querying sale_items
-                            print(f"DEBUG: Using sale_id {sale_id} instead of invoice_id {invoice_id} for item lookup")
                             invoice_id = sale_id
 
-            print(f"DEBUG: Found {invoice_items_count} items in invoice_items, {sale_items_count} items in sale_items")
-
-            # Debug: Show actual data in tables
             if invoice_items_count > 0:
-                cursor.execute("SELECT * FROM invoice_items WHERE invoice_id = ? LIMIT 1", (invoice_id,))
-                sample_ii = cursor.fetchone()
-                print(f"DEBUG: Sample invoice_items data: {sample_ii}")
-
-            if sale_items_count > 0:
-                cursor.execute("SELECT * FROM sale_items WHERE sale_id = ? LIMIT 1", (invoice_id,))
-                sample_si = cursor.fetchone()
-                print(f"DEBUG: Sample sale_items data: {sample_si}")
-
-            if invoice_items_count > 0:
-                # Query from invoice_items table WITHOUT aggregation to preserve individual batch details
-                # First check what columns exist in invoice_items
-                try:
-                    cursor.execute("PRAGMA table_info(invoice_items)")
-                    invoice_items_cols = {col[1] for col in cursor.fetchall()}
-                    print(f"DEBUG: Available invoice_items columns: {invoice_items_cols}")
-                except Exception as e:
-                    print(f"DEBUG: Error checking invoice_items schema: {e}")
-                    invoice_items_cols = set()
+                # Query from invoice_items table - this preserves the batch-specific rate
+                cursor.execute("PRAGMA table_info(invoice_items)")
+                invoice_items_cols = {col[1] for col in cursor.fetchall()}
 
                 # Build HSN code selection based on available columns
                 hsn_selection = ""
@@ -625,14 +561,11 @@ def generate_invoice(invoice_data, save_path):
                     WHERE ii.invoice_id = ?
                     ORDER BY ii.id
                 """
-                print(f"DEBUG: Executing individual invoice_items query with invoice_id: {invoice_id}")
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(f"DEBUG: Query returned {len(items)} individual items from invoice_items")
 
             elif sale_items_count > 0:
-                # Query from sale_items table - each sale_item represents one actual transaction
-                # Show exactly what was sold with correct batch information
+                # Query from sale_items table - this also preserves the batch-specific rate (stored as 'price')
                 query = """
                     SELECT 
                         si.product_name,
@@ -651,121 +584,207 @@ def generate_invoice(invoice_data, save_path):
                     WHERE si.sale_id = ?
                     ORDER BY si.id
                 """
-                print(f"DEBUG: Executing individual sale_items query with sale_id: {invoice_id}")
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
-                print(f"DEBUG: Query returned {len(items)} individual items from sale_items")
-
-                # Debug: Print the actual data for first item
-                if items:
-                    print(f"DEBUG: First sale_items row: {items[0]}")
-                    print(f"DEBUG: Batch number from sale_items: '{items[0][3] if len(items[0]) > 3 else 'N/A'}'")
-                    print(f"DEBUG: Expiry date from sale_items: '{items[0][4] if len(items[0]) > 4 else 'N/A'}')")
-
-            # If still no items, try alternative approach
-            if not items:
-                print(f"DEBUG: No items found, trying alternative query approach")
-                # Try getting items from the invoices data passed in
-                items_from_data = invoice_data.get('items', [])
-                if items_from_data:
-                    print(f"DEBUG: Found {len(items_from_data)} items in invoice_data")
-                    # Convert the passed items to the expected format and aggregate by product
-                    product_aggregation = {}
-                    for item_data in items_from_data:
-                        product_key = (
-                            item_data.get('product_id', 0),
-                            item_data.get('name', 'Unknown Product'),
-                            item_data.get('price', 0),
-                            item_data.get('discount', 0),
-                            item_data.get('batch_no', '')
-                        )
-
-                        if product_key in product_aggregation:
-                            # Aggregate quantity and total
-                            product_aggregation[product_key]['quantity'] += item_data.get('quantity', 0)
-                            product_aggregation[product_key]['total'] += item_data.get('total', 0)
-                        else:
-                            product_aggregation[product_key] = {
-                                'name': item_data.get('name', 'Unknown Product'),
-                                'company': item_data.get('company', ''),
-                                'hsn_code': item_data.get('hsn_code', ''),
-                                'batch_no': item_data.get('batch_no', ''),
-                                'expiry_date': item_data.get('expiry_date', ''),
-                                'quantity': item_data.get('quantity', 0),
-                                'unit': item_data.get('unit', ''),
-                                'price': item_data.get('price', 0),
-                                'discount': item_data.get('discount', 0),
-                                'total': item_data.get('total', 0)
-                            }
-
-                    # Convert aggregated items back to list format
-                    items = []
-                    for product_key, aggregated_item in product_aggregation.items():
-                        items.append((
-                            aggregated_item['name'],
-                            aggregated_item['company'],
-                            aggregated_item['hsn_code'],
-                            aggregated_item['batch_no'],
-                            aggregated_item['expiry_date'],
-                            aggregated_item['quantity'],
-                            aggregated_item['unit'],
-                            aggregated_item['price'],
-                            aggregated_item['discount'],
-                            aggregated_item['total']
-                        ))
-                else:
-                    print("DEBUG: No items found in invoice_data either")
-                    # If we still have no items but have an invoice_number, try one more approach
-                    if invoice_number and not invoice_id:
-                        print(f"DEBUG: Trying to find any sales data for invoice_number: {invoice_number}")
-                        cursor.execute("""
-                            SELECT 'Placeholder Item' as name, '' as company, '' as hsn, '' as batch, 
-                                   '' as expiry, 1 as qty, 'pcs' as unit, 0 as price, 0 as discount, 0 as total
-                        """)
-                        placeholder_result = cursor.fetchone()
-                        if placeholder_result:
-                            items = [placeholder_result]
-
-            print(f"DEBUG: Retrieved {len(items)} items for processing")
-            if items:
-                print(f"DEBUG: First item data: {items[0]}")
 
             cursor.close()
             conn.close()
 
         except Exception as e:
             print(f"Error fetching invoice items: {e}")
-            import traceback
-            traceback.print_exc()
 
         # Format items with proper field mapping
         formatted_items = []
-        items_subtotal = 0.0  # Calculate actual subtotal from items
+        items_subtotal = 0.0
         tax_total = 0.0
         total_qty = 0
 
         for i, item in enumerate(items):
             try:
-                # Map fields from sale_items query results
-                # sale_items fields: id, sale_id, product_id, product_name, hsn_code, batch_number, expiry_date, quantity, price, discount_percent, tax_percentage, tax_amount, total
-                item_id = item[0]
-                sale_id = item[1] 
-                product_id = item[2]
-                name = str(item[3]) if item[3] else "Unknown Product"
-                hsn_code = str(item[4]) if item[4] else ""
-                batch_no = str(item[5]) if item[5] else ""
-                expiry_date = str(item[6]) if item[6] else ""
-                quantity = float(item[7]) if item[7] is not None else 0
-                price = float(item[8]) if item[8] is not None else 0  # This is the stored sale price
-                discount = float(item[9]) if item[9] is not None else 0
-                tax_percentage = float(item[10]) if item[10] is not None else 0
-                tax_amount = float(item[11]) if item[11] is not None else 0
-                item_total = float(item[12]) if item[12] is not None else 0
+                # Map fields from query results
+                name = str(item[0]) if item[0] else "Unknown Product"
+                company_name = str(item[1]) if item[1] else ""
+                hsn_code = str(item[2]) if item[2] else ""
+                batch_no = str(item[3]) if item[3] else ""
+                expiry_date = str(item[4]) if item[4] else ""
+                quantity = float(item[5]) if item[5] is not None else 0
+                unit = str(item[6]) if item[6] else "pcs"
+                rate = float(item[7]) if item[7] is not None else 0  # This is the batch-specific rate
+                discount = float(item[8]) if item[8] is not None else 0
+                item_total = float(item[9]) if item[9] is not None else 0
 
-                # Get additional fields from the JOIN
-                resolved_hsn_code = str(item[13]) if len(item) > 13 and item[13] else hsn_code
-                manufacturer = str(item[14]) if len(item) > 14 and item[14] else ""
-                unit = str(item[15]) if len(item) > 15 and item[15] else "pcs"
+                # Format discount display
+                discount_display = f"{discount}%" if discount > 0 else ""
 
-                # Use resolved HSN code
-                hsn_code = resolved_hsn_code
+                # Add to formatted items
+                formatted_items.append([
+                    Paragraph(str(i + 1), styles['ItemData']),  # Serial number
+                    Paragraph(f"{name[:25]}", styles['ItemData']),  # Product name (truncated)
+                    Paragraph(f"{company_name[:15]}", styles['ItemData']),  # Company name (truncated)
+                    Paragraph(f"{hsn_code}", styles['ItemData']),  # HSN code
+                    Paragraph(f"{batch_no}", styles['ItemData']),  # Batch number
+                    Paragraph(f"{expiry_date}", styles['ItemData']),  # Expiry date
+                    Paragraph(f"{quantity:.0f}", styles['ItemData']),  # Quantity
+                    Paragraph(f"{unit}", styles['ItemData']),  # Unit
+                    Paragraph(format_currency(rate), styles['ItemData']),  # Rate (batch-specific)
+                    Paragraph(f"{discount_display}", styles['ItemData']),  # Discount
+                    Paragraph(format_currency(item_total), styles['ItemData'])  # Amount
+                ])
+
+                total_qty += quantity
+                items_subtotal += item_total
+
+            except Exception as e:
+                print(f"Error processing item {i}: {e}")
+                continue
+
+        # Add empty rows if needed to maintain table format
+        while len(formatted_items) < 8:  # Minimum 8 rows for consistent layout
+            formatted_items.append([
+                Paragraph("", styles['ItemData']) for _ in range(11)
+            ])
+
+        # Create items table
+        items_table = Table(formatted_items, colWidths=col_widths)
+        items_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),  # Serial number center
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),    # Product name left
+            ('ALIGN', (2, 0), (2, -1), 'LEFT'),    # Company name left
+            ('ALIGN', (3, 0), (3, -1), 'CENTER'),  # HSN center
+            ('ALIGN', (4, 0), (4, -1), 'CENTER'),  # Batch center
+            ('ALIGN', (5, 0), (5, -1), 'CENTER'),  # Expiry center
+            ('ALIGN', (6, 0), (6, -1), 'CENTER'),  # Qty center
+            ('ALIGN', (7, 0), (7, -1), 'CENTER'),  # Unit center
+            ('ALIGN', (8, 0), (8, -1), 'RIGHT'),   # Rate right
+            ('ALIGN', (9, 0), (9, -1), 'CENTER'),  # Discount center
+            ('ALIGN', (10, 0), (10, -1), 'RIGHT'), # Amount right
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ]))
+
+        # ------ TOTALS SECTION ------
+        # Total row
+        total_row_data = [[
+            Paragraph("", styles['ItemData']),
+            Paragraph("Total", styles['TableHeaderLeft']),
+            Paragraph("", styles['ItemData']),
+            Paragraph("", styles['ItemData']),
+            Paragraph("", styles['ItemData']),
+            Paragraph("", styles['ItemData']),
+            Paragraph(f"{total_qty:.0f}", styles['TableHeader']),
+            Paragraph("", styles['ItemData']),
+            Paragraph("", styles['ItemData']),
+            Paragraph("", styles['ItemData']),
+            Paragraph(format_currency(total), styles['TableHeader'])
+        ]]
+
+        total_table = Table(total_row_data, colWidths=col_widths)
+        total_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+            ('ALIGN', (6, 0), (6, 0), 'CENTER'),
+            ('ALIGN', (10, 0), (10, 0), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (1, 0), (1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (6, 0), (6, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (10, 0), (10, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ]))
+
+        # Amount in words
+        try:
+            total_for_words = float(total)
+            amount_in_words = num_to_words_indian(total_for_words)
+        except (ValueError, TypeError):
+            amount_in_words = "Zero Rupees Only"
+
+        # Amount in words and discount row
+        amount_discount_data = [[
+            Paragraph(f"Amount (in words): {amount_in_words}", styles['CustomerInfo']),
+            Paragraph(f"Discount: {format_currency(discount)}", styles['RightAligned'])
+        ]]
+
+        amount_discount_table = Table(amount_discount_data, colWidths=[doc.width*0.7, doc.width*0.3])
+        amount_discount_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ]))
+
+        # Tax details and payment info
+        tax_payment_data = [
+            [
+                Paragraph(f"Payment Mode: {payment_method}", styles['CustomerInfo']),
+                Paragraph(f"Taxable Value: {format_currency(taxable_value)}", styles['CustomerInfo']),
+                Paragraph(f"CGST ({cgst_rate}%): {format_currency(cgst)}", styles['CustomerInfo']),
+                Paragraph(f"SGST ({sgst_rate}%): {format_currency(sgst)}", styles['CustomerInfo'])
+            ],
+            [
+                Paragraph(f"Payment Status: {payment_status}", styles['CustomerInfo']),
+                Paragraph(f"Total Tax: {format_currency(cgst + sgst)}", styles['CustomerInfo']),
+                Paragraph(f"Total Amount: {format_currency(total)}", styles['CustomerInfo']),
+                Paragraph(f"Outstanding: {format_currency(outstanding_amount)}", styles['CustomerInfo'])
+            ]
+        ]
+
+        tax_payment_table = Table(tax_payment_data, colWidths=[doc.width*0.25, doc.width*0.25, doc.width*0.25, doc.width*0.25])
+        tax_payment_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ]))
+
+        # Terms and conditions
+        terms_data = [[
+            Paragraph("Terms & Conditions: Goods once sold cannot be returned. Payment due within 30 days.", styles['Terms'])
+        ]]
+
+        terms_table = Table(terms_data, colWidths=[doc.width])
+        terms_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ]))
+
+        # Signature section
+        signature_data = [[
+            Paragraph("Customer Signature", styles['CustomerInfo']),
+            Paragraph(f"For {shop_name}", styles['RightAligned'])
+        ]]
+
+        signature_table = Table(signature_data, colWidths=[doc.width*0.5, doc.width*0.5])
+        signature_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ]))
+
+        # Add all elements to PDF
+        elements.append(shop_name_table)
+        elements.append(shop_info_table)
+        elements.append(customer_info_table)
+        elements.append(items_header_table)
+        elements.append(items_table)
+        elements.append(total_table)
+        elements.append(amount_discount_table)
+        elements.append(tax_payment_table)
+        elements.append(terms_table)
+        elements.append(signature_table)
+
+        # Build PDF
+        doc.build(elements)
+
+        print(f"Invoice generated successfully at: {save_path}")
+        return True
+
+    except Exception as e:
+        print(f"Error generating invoice: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
