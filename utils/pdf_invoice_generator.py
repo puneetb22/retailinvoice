@@ -655,6 +655,14 @@ def generate_invoice(invoice_data, save_path):
                 # Debug: Print the actual data for first item
                 if items:
                     print(f"DEBUG: First sale_items row: {items[0]}")
+                print(f"DEBUG: Executing individual sale_items query with sale_id: {invoice_id}")
+                cursor.execute(query, (invoice_id,))
+                items = cursor.fetchall()
+                print(f"DEBUG: Query returned {len(items)} individual items from sale_items")
+
+                # Debug: Print the actual data for first item
+                if items:
+                    print(f"DEBUG: First sale_items row: {items[0]}")
                     print(f"DEBUG: Rate from sale_items: '{items[0][7] if len(items[0]) > 7 else 'N/A'}'")
                     print(f"DEBUG: Batch number from sale_items: '{items[0][3] if len(items[0]) > 3 else 'N/A'}'")
                     print(f"DEBUG: Expiry date from sale_items: '{items[0][4] if len(items[0]) > 4 else 'N/A'}')")
