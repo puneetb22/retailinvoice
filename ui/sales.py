@@ -4021,12 +4021,12 @@ class SalesFrame(tk.Frame):
                     "batch_number": batch_number,
                     "expiry_date": expiry_date,
                     "quantity": float(item["quantity"]),
-                    "price": float(product_price),
+                    "price": float(item["price"]),  # Use the actual batch-specific price from cart item
                     "discount_percent": float(item["discount"]),
                     "tax_percentage": float(tax_rate),
                     "tax_amount": float(tax_amount),
                     "total": float(item["total"])
-                })
+                })</old_str>
                 
                 # Also add to invoice_items table for compatibility with sales_history view
                 # Check if hsn_code column exists in invoice_items before inserting
