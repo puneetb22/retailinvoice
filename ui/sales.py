@@ -4037,7 +4037,7 @@ class SalesFrame(tk.Frame):
                     invoice_item_data = {
                         "invoice_id": invoice_id,
                         "product_id": item["product_id"] or 0,  # Use 0 if product_id is None
-                        "batch_number": "",  # We don't track batch in sale_items
+                        "batch_number": batch_number,  # Pass the actual batch number
                         "quantity": float(item["quantity"]),
                         "price_per_unit": float(product_price),
                         "discount_percentage": float(item["discount"]),
@@ -4057,7 +4057,7 @@ class SalesFrame(tk.Frame):
                     db.insert("invoice_items", {
                         "invoice_id": invoice_id,
                         "product_id": item["product_id"] or 0,
-                        "batch_number": "",
+                        "batch_number": batch_number,  # Pass the actual batch number
                         "quantity": float(item["quantity"]),
                         "price_per_unit": float(product_price),
                         "discount_percentage": float(item["discount"]),

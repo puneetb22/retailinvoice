@@ -604,11 +604,10 @@ def generate_invoice(invoice_data, save_path):
                         COALESCE(p.name, 'Unknown Product') as product_name,
                         COALESCE(p.manufacturer, '') as company_name,
                         {hsn_selection},
-                        COALESCE(ii.batch_number, b.batch_number, '') as batch_number,
-                        COALESCE(b.expiry_date, 
+                        COALESCE(ii.batch_number, '') as batch_number,
+                        COALESCE(
                             (SELECT expiry_date FROM batches WHERE product_id = ii.product_id 
-                             AND batch_number = COALESCE(ii.batch_number, b.batch_number)
-                             LIMIT 1), 
+                             AND batch_number = ii.batch_number LIMIT 1),
                             ''
                         ) as expiry_date,
                         ii.quantity as quantity,
@@ -619,7 +618,6 @@ def generate_invoice(invoice_data, save_path):
                         ii.product_id
                     FROM invoice_items ii
                     LEFT JOIN products p ON ii.product_id = p.id
-                    LEFT JOIN batches b ON ii.product_id = b.product_id AND ii.batch_number = b.batch_number
                     WHERE ii.invoice_id = ?
                     ORDER BY ii.id
                 """
@@ -653,6 +651,12 @@ def generate_invoice(invoice_data, save_path):
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
                 print(f"DEBUG: Query returned {len(items)} individual items from sale_items")
+                
+                # Debug: Print the actual data for first item
+                if items:
+                    print(f"DEBUG: First sale_items row: {items[0]}")
+                    print(f"DEBUG: Batch number from sale_items: '{items[0][3] if len(items[0]) > 3 else 'N/A'}'")
+                    print(f"DEBUG: Expiry date from sale_items: '{items[0][4] if len(items[0]) > 4 else 'N/A'}')")
 
             # If still no items, try alternative approach
             if not items:
