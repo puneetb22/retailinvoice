@@ -4062,9 +4062,6 @@ class SalesFrame(tk.Frame):
                 
                 # Also add to invoice_items table for compatibility with sales_history view
                 # Check if hsn_code column exists in invoice_items before inserting
-                
-                # Also add to invoice_items table for compatibility with sales_history view
-                # Check if hsn_code column exists in invoice_items before inserting
                 try:
                     cols = db.fetchall("PRAGMA table_info(invoice_items)")
                     col_names = [col[1] for col in cols]
