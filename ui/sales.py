@@ -4018,12 +4018,12 @@ class SalesFrame(tk.Frame):
                     "quantity": float(item["quantity"]),
                     "price": actual_price,  # Use the actual batch-specific price from cart item
                     "discount_percent": float(item["discount"]),
-                    "tax_percentage": float(tax_rate),
+                    "tax_rate": float(tax_rate),  # Use tax_rate column name that exists in schema
                     "tax_amount": float(tax_amount),
                     "total": float(item["total"])
                 })
                 
-                # Also add to invoice_items table for compatibility with sales_history view
+                # Add to invoice_items table for compatibility with sales_history view
                 # Check if hsn_code column exists in invoice_items before inserting
                 try:
                     cols = db.fetchall("PRAGMA table_info(invoice_items)")
@@ -4032,46 +4032,9 @@ class SalesFrame(tk.Frame):
                     invoice_item_data = {
                         "invoice_id": invoice_id,
                         "product_id": item["product_id"] or 0,  # Use 0 if product_id is None
-                        "batch_number": batch_number,  # Pass the actual batch number
-                        "quantity": float(item["quantity"]),
-                        "price_per_unit": float(item["price"]),  # Use actual batch-specific price instead of product_price
-                        "discount_percentage": float(item["discount"]),
-                        "tax_percentage": float(tax_rate),
-                        "total_price": float(item["total"])
-                    }
-                    
-                    # Only add hsn_code if the column exists
-                    if "hsn_code" in col_names:
-                        invoice_item_data["hsn_code"] = hsn_code
-                    
-                    db.insert("invoice_items", invoice_item_data)
-                    
-                except Exception as e:
-                    print(f"Insert error: {e}")
-                    # Try without hsn_code
-                    db.insert("invoice_items", {
-                        "invoice_id": invoice_id,
-                        "product_id": item["product_id"] or 0,
                         "batch_number": batch_number,  # Pass the actual batch number
                         "quantity": float(item["quantity"]),
                         "price_per_unit": float(item["price"]),  # Use actual batch-specific price
-                        "discount_percentage": float(item["discount"]),
-                        "tax_percentage": float(tax_rate),
-                        "total_price": float(item["total"])
-                    })
-                
-                # Also add to invoice_items table for compatibility with sales_history view
-                # Check if hsn_code column exists in invoice_items before inserting
-                try:
-                    cols = db.fetchall("PRAGMA table_info(invoice_items)")
-                    col_names = [col[1] for col in cols]
-                    
-                    invoice_item_data = {
-                        "invoice_id": invoice_id,
-                        "product_id": item["product_id"] or 0,  # Use 0 if product_id is None
-                        "batch_number": batch_number,  # Pass the actual batch number
-                        "quantity": float(item["quantity"]),
-                        "price_per_unit": float(item["price"]),  # Use actual batch-specific price instead of product_price
                         "discount_percentage": float(item["discount"]),
                         "tax_percentage": float(tax_rate),
                         "total_price": float(item["total"])
