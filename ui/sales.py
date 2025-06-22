@@ -3985,7 +3985,7 @@ class SalesFrame(tk.Frame):
             # Store sale items
             for item in self.cart_items:
                 # Use the actual price from cart item (batch-specific price)
-                actual_price = item["price"]  # This contains the batch-specific price</old_str>
+                actual_price = item["price"]  # This contains the batch-specific price
                 
                 # Calculate item tax with proper Decimal handling
                 tax_rate = item.get("tax_percentage", 18)  # Default 18% if not specified
@@ -4058,10 +4058,10 @@ class SalesFrame(tk.Frame):
                         "discount_percentage": float(item["discount"]),
                         "tax_percentage": float(tax_rate),
                         "total_price": float(item["total"])
-                    })</old_str>
+                    })
                 
                 # Also add to invoice_items table for compatibility with sales_history view
-                # Check if hsn_code column exists in invoice_items before inserting</old_str>
+                # Check if hsn_code column exists in invoice_items before inserting
                 
                 # Also add to invoice_items table for compatibility with sales_history view
                 # Check if hsn_code column exists in invoice_items before inserting
@@ -4078,7 +4078,7 @@ class SalesFrame(tk.Frame):
                         "discount_percentage": float(item["discount"]),
                         "tax_percentage": float(tax_rate),
                         "total_price": float(item["total"])
-                    }</old_str>
+                    }
                     
                     # Only add hsn_code if the column exists
                     if "hsn_code" in col_names:
@@ -4098,7 +4098,7 @@ class SalesFrame(tk.Frame):
                         "discount_percentage": float(item["discount"]),
                         "tax_percentage": float(tax_rate),
                         "total_price": float(item["total"])
-                    })</old_str>
+                    })
                 
                 # Update inventory for database products
                 if item["product_id"]:

@@ -620,7 +620,7 @@ def generate_invoice(invoice_data, save_path):
                     LEFT JOIN products p ON ii.product_id = p.id
                     WHERE ii.invoice_id = ?
                     ORDER BY ii.id
-                """</old_str>
+                """
                 print(f"DEBUG: Executing individual invoice_items query with invoice_id: {invoice_id}")
                 cursor.execute(query, (invoice_id,))
                 items = cursor.fetchall()
