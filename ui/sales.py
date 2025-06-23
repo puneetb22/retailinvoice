@@ -54,6 +54,7 @@ class SalesFrame(tk.Frame):
         
         # Bind keyboard events
         self.bind("<Key>", self.handle_key_event)
+        self.bind_all("<Control-d>", lambda event: self.open_add_customer_dialog())
         self.focus_set()
     
     def _set_dialog_transient(self, dialog):
@@ -298,6 +299,42 @@ class SalesFrame(tk.Frame):
         
         # Load initial customer list
         self.load_customers_for_dropdown()
+        
+        # Walk-in customer button with clean styling
+        walkin_btn = tk.Button(container,
+                             text="Walk-in",
+                             font=FONTS["regular"],
+                             bg=COLORS["bg_secondary"],
+                             fg=COLORS["text_primary"],
+                             padx=10,
+                             pady=3,
+                             cursor="hand2",
+                             command=self.set_walkin_customer)
+        walkin_btn.pack(side=tk.LEFT, padx=5)
+        
+        # New customer button with clean styling
+        new_btn = tk.Button(container,
+                          text="+ New",
+                          font=FONTS["regular"],
+                          bg=COLORS["secondary"],
+                          fg=COLORS["text_white"],
+                          padx=10,
+                          pady=3,
+                          cursor="hand2",
+                          command=lambda: self.change_customer(add_new=True))
+        new_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Directory button with clean styling
+        dir_btn = tk.Button(container,
+                          text="📁",
+                          font=FONTS["regular_bold"],
+                          bg=COLORS["primary"],
+                          fg=COLORS["text_white"],
+                          padx=8,
+                          pady=3,
+                          cursor="hand2",
+                          command=self.change_customer)
+        dir_btn.pack(side=tk.LEFT, padx=5)
     
     def on_customer_key_release(self, event):
         """Handle key release events in customer combobox"""
@@ -348,42 +385,6 @@ class SalesFrame(tk.Frame):
         
         # Call the existing change_customer method with add_new=True
         self.change_customer(add_new=True, default_name=default_name)
-        
-        # Walk-in customer button with clean styling
-        walkin_btn = tk.Button(container,
-                             text="Walk-in",
-                             font=FONTS["regular"],
-                             bg=COLORS["bg_secondary"],
-                             fg=COLORS["text_primary"],
-                             padx=10,
-                             pady=3,
-                             cursor="hand2",
-                             command=self.set_walkin_customer)
-        walkin_btn.pack(side=tk.LEFT, padx=5)
-        
-        # New customer button with clean styling
-        new_btn = tk.Button(container,
-                          text="+ New",
-                          font=FONTS["regular"],
-                          bg=COLORS["secondary"],
-                          fg=COLORS["text_white"],
-                          padx=10,
-                          pady=3,
-                          cursor="hand2",
-                          command=lambda: self.change_customer(add_new=True))
-        new_btn.pack(side=tk.LEFT, padx=5)
-        
-        # Directory button with clean styling
-        dir_btn = tk.Button(container,
-                          text="📁",
-                          font=FONTS["regular_bold"],
-                          bg=COLORS["primary"],
-                          fg=COLORS["text_white"],
-                          padx=8,
-                          pady=3,
-                          cursor="hand2",
-                          command=self.change_customer)
-        dir_btn.pack(side=tk.LEFT, padx=5)
     
     def setup_cart_panel(self, parent):
         """Setup the cart panel with item list and totals"""
@@ -4443,10 +4444,7 @@ class SalesFrame(tk.Frame):
         # Get the widget that currently has focus
         focused_widget = self.focus_get()
         
-        # Ctrl+D to add new customer (global shortcut)
-        if ctrl and key.lower() == "d":
-            self.open_add_customer_dialog()
-            return "break"
+        
         
         # Tab key to cycle focus
         if key == "Tab":
