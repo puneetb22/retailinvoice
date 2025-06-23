@@ -55,7 +55,11 @@ class SalesFrame(tk.Frame):
         # Bind keyboard events
         self.bind("<Key>", self.handle_key_event)
         self.bind_all("<Control-d>", lambda event: self.open_add_customer_dialog())
+        self.bind_all("<Control-h>", lambda event: self.show_customer_purchase_history())
         self.focus_set()
+        
+        # Ensure focus is set properly for keyboard shortcuts to work
+        self.after(100, lambda: self.focus_force())
     
     def _set_dialog_transient(self, dialog):
         """Helper method to set dialog transient property correctly"""
@@ -97,7 +101,7 @@ class SalesFrame(tk.Frame):
         
         shortcut_label = tk.Label(
             shortcut_frame,
-            text="Keyboard Shortcuts: Tab: Cycle focus | Ctrl+Shift+P: Products | Ctrl+Shift+C: Cart | Ctrl+D: Add Customer | Enter: Add/Edit",
+            text="Keyboard Shortcuts: Tab: Cycle focus | Ctrl+Shift+P: Products | Ctrl+Shift+C: Cart | Ctrl+D: Add Customer | Ctrl+H: Customer History | Enter: Add/Edit",
             font=FONTS["small"],
             bg=COLORS["bg_secondary"],
             fg=COLORS["text_secondary"],
@@ -222,12 +226,45 @@ class SalesFrame(tk.Frame):
                 self.open_add_customer_dialog()
                 return
             
-            # Update current customer
-            self.current_customer = {
-                "id": customer_info["id"],
-                "name": customer_info["name"],
-                "phone": customer_info["phone"]
-            }
+            # Get complete customer details from database if not Walk-in Customer
+            if customer_info["id"] != 1:
+                db = self.controller.db
+                customer_details = db.fetchone("""
+                    SELECT id, name, phone, address, village, gstin
+                    FROM customers
+                    WHERE id = ?
+                """, (customer_info["id"],))
+                
+                if customer_details:
+                    # Update current customer with complete details
+                    self.current_customer = {
+                        "id": customer_details[0],
+                        "name": customer_details[1],
+                        "phone": customer_details[2] or "",
+                        "address": customer_details[3] or "",
+                        "village": customer_details[4] or "",
+                        "gstin": customer_details[5] or ""
+                    }
+                else:
+                    # Fallback to basic info
+                    self.current_customer = {
+                        "id": customer_info["id"],
+                        "name": customer_info["name"],
+                        "phone": customer_info["phone"],
+                        "address": "",
+                        "village": "",
+                        "gstin": ""
+                    }
+            else:
+                # Update current customer for Walk-in Customer
+                self.current_customer = {
+                    "id": customer_info["id"],
+                    "name": customer_info["name"],
+                    "phone": customer_info["phone"],
+                    "address": "",
+                    "village": "",
+                    "gstin": ""
+                }
             
             # Update customer label in cart panel
             self.customer_label.config(text=customer_info["name"])
@@ -385,6 +422,44 @@ class SalesFrame(tk.Frame):
         
         # Call the existing change_customer method with add_new=True
         self.change_customer(add_new=True, default_name=default_name)
+    
+    def show_customer_purchase_history(self):
+        """Show purchase history for the currently selected customer"""
+        # Check if a customer is selected (not Walk-in Customer)
+        if self.current_customer["id"] == 1:
+            messagebox.showinfo("No Customer Selected", 
+                              "Please select a customer first to view purchase history. Walk-in customers don't have purchase history.")
+            return
+        
+        # Import the customer management module to reuse the view_history functionality
+        from ui.customer_management import CustomerManagementFrame
+        
+        # Create a temporary customer management instance to access the view_history method
+        temp_customer_mgmt = CustomerManagementFrame(self, self.controller)
+        
+        # Create a mock treeview selection with the current customer
+        class MockTreeView:
+            def __init__(self, customer_id, customer_name):
+                self.customer_id = customer_id
+                self.customer_name = customer_name
+            
+            def selection(self):
+                return ["mock_selection"]
+            
+            def item(self, item, key):
+                if key == "values":
+                    return [self.customer_id, self.customer_name]
+                return {}
+        
+        # Replace the customer_tree temporarily
+        original_tree = temp_customer_mgmt.customer_tree
+        temp_customer_mgmt.customer_tree = MockTreeView(self.current_customer["id"], self.current_customer["name"])
+        
+        # Call the view_history method
+        temp_customer_mgmt.view_history()
+        
+        # Restore the original tree
+        temp_customer_mgmt.customer_tree = original_tree
     
     def setup_cart_panel(self, parent):
         """Setup the cart panel with item list and totals"""
