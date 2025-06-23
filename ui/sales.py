@@ -138,6 +138,10 @@ class SalesFrame(tk.Frame):
     def filter_customers(self, event):
         """Filter customers based on input in combobox with real-time filtering"""
         try:
+            # Check if widgets still exist before accessing them
+            if not hasattr(self, 'customer_combo') or not self.customer_combo.winfo_exists():
+                return
+                
             # Store cursor position
             cursor_pos = self.customer_combo.index(tk.INSERT)
             search_term = self.customer_var.get().strip().lower()
@@ -181,10 +185,15 @@ class SalesFrame(tk.Frame):
             current_text = self.customer_var.get()
             self.customer_combo['values'] = customer_list
             
+            # Show dropdown when there are multiple options
+            if len(customer_list) > 1:
+                self.customer_combo.event_generate('<Down>')
+            
             # Preserve the typed text and cursor position
             if current_text != "Search Customer":
                 # Temporarily disable the trace to avoid recursive calls
-                self.customer_var.trace_remove("write", self.trace_id)
+                if hasattr(self, 'trace_id'):
+                    self.customer_var.trace_remove("write", self.trace_id)
                 self.customer_var.set(current_text)
                 # Re-enable the trace
                 self.trace_id = self.customer_var.trace_add("write", lambda *args: self.schedule_filter())
@@ -334,6 +343,9 @@ class SalesFrame(tk.Frame):
         # Set up trace for real-time filtering
         self.trace_id = self.customer_var.trace_add("write", lambda *args: self.schedule_filter())
         
+        # Bind focus events to show dropdown when typing
+        self.customer_combo.bind("<KeyPress>", self.on_customer_keypress)
+        
         # Load initial customer list
         self.load_customers_for_dropdown()
         
@@ -372,6 +384,22 @@ class SalesFrame(tk.Frame):
                           cursor="hand2",
                           command=self.change_customer)
         dir_btn.pack(side=tk.LEFT, padx=5)
+    
+    def on_customer_keypress(self, event):
+        """Handle key press events in customer combobox to show dropdown"""
+        # For printable characters, trigger dropdown after filtering
+        if event.char and event.char.isprintable() and event.char != ' ':
+            self.after_idle(self.show_dropdown_if_needed)
+    
+    def show_dropdown_if_needed(self):
+        """Show dropdown if there are multiple options available"""
+        try:
+            if hasattr(self, 'customer_combo') and self.customer_combo.winfo_exists():
+                values = self.customer_combo['values']
+                if len(values) > 1:
+                    self.customer_combo.event_generate('<Down>')
+        except Exception as e:
+            print(f"Error showing dropdown: {str(e)}")
     
     def on_customer_key_release(self, event):
         """Handle key release events in customer combobox"""
@@ -446,9 +474,11 @@ class SalesFrame(tk.Frame):
             def selection(self):
                 return ["mock_selection"]
             
-            def item(self, item, key):
+            def item(self, item, key=None):
                 if key == "values":
                     return [self.customer_id, self.customer_name]
+                elif key is None:
+                    return {"values": [self.customer_id, self.customer_name]}
                 return {}
         
         # Replace the customer_tree temporarily
@@ -2067,7 +2097,7 @@ class SalesFrame(tk.Frame):
         # If adding new customer
         if add_new:
             # Create dialog
-            dialog = tk.Toplevel(self)
+            dialog = tk.Toplevel(self.winfo_toplevel())
             dialog.title("Add New Customer")
             dialog.geometry("500x400")
             dialog.resizable(False, False)
