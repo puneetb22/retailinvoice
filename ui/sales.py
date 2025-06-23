@@ -96,7 +96,7 @@ class SalesFrame(tk.Frame):
         
         shortcut_label = tk.Label(
             shortcut_frame,
-            text="Keyboard Shortcuts: Tab: Cycle focus | Ctrl+Shift+P: Products | Ctrl+Shift+C: Cart | Enter: Add/Edit",
+            text="Keyboard Shortcuts: Tab: Cycle focus | Ctrl+Shift+P: Products | Ctrl+Shift+C: Cart | Ctrl+D: Add Customer | Enter: Add/Edit",
             font=FONTS["small"],
             bg=COLORS["bg_secondary"],
             fg=COLORS["text_secondary"],
@@ -131,7 +131,7 @@ class SalesFrame(tk.Frame):
         self.customer_combo['values'] = ["Walk-in Customer"]
     
     def filter_customers(self, event):
-        """Filter customers based on input in combobox"""
+        """Filter customers based on input in combobox with real-time filtering"""
         try:
             # Store cursor position
             cursor_pos = self.customer_combo.index(tk.INSERT)
@@ -139,6 +139,9 @@ class SalesFrame(tk.Frame):
             
             # Skip filtering if the search term is empty or the placeholder
             if not search_term or search_term == "search customer":
+                # Reset to default options when empty
+                self.customer_combo['values'] = ["Walk-in Customer"]
+                self.customer_data = {0: {"id": 1, "name": "Walk-in Customer", "phone": ""}}
                 return
                 
             # Get all customers matching the search term
@@ -158,36 +161,53 @@ class SalesFrame(tk.Frame):
             customer_list = ["Walk-in Customer"]
             self.customer_data = {0: {"id": 1, "name": "Walk-in Customer", "phone": ""}}
             
+            # Add matching customers
             for customer in customers:
                 display_text = f"{customer[1]} ({customer[2] if customer[2] else 'No phone'})"
                 customer_list.append(display_text)
                 self.customer_data[len(customer_list)-1] = {"id": customer[0], "name": customer[1], "phone": customer[2] or ""}
             
-            # Update combobox values without changing current entry text
+            # If no customers found (only Walk-in Customer), add "Add New Customer" option
+            if len(customer_list) == 1:
+                customer_list.append("+ Add New Customer (Ctrl+D)")
+                self.customer_data[len(customer_list)-1] = {"id": "new", "name": "Add New Customer", "phone": ""}
+            
+            # Update combobox values
             current_text = self.customer_var.get()
             self.customer_combo['values'] = customer_list
             
-            # Preserve typing behavior by avoiding value changes
+            # Preserve the typed text and cursor position
             if current_text != "Search Customer":
+                # Temporarily disable the trace to avoid recursive calls
+                self.customer_var.trace_remove("write", self.trace_id)
                 self.customer_var.set(current_text)
-            
-            # If there are matching customers, show the dropdown without losing focus
-            if len(customer_list) > 1:
-                # Make dropdown visible but don't change current entry text
-                self.customer_combo.focus_set()
+                # Re-enable the trace
+                self.trace_id = self.customer_var.trace_add("write", lambda *args: self.schedule_filter())
                 
-                # Only check event.keysym if it exists (sometimes it's not provided)
-                if hasattr(event, 'keysym') and event.keysym not in ('Return', 'KP_Enter', 'Tab', 'Escape'):
-                    self.customer_combo.event_generate('<Down>')
-                    self.customer_combo.icursor(cursor_pos)  # Restore cursor position
-                elif not hasattr(event, 'keysym'):
-                    # If event doesn't have keysym, just show dropdown
-                    self.customer_combo.event_generate('<Down>')
-                    self.customer_combo.icursor(cursor_pos)  # Restore cursor position
+                # Restore cursor position after a brief delay
+                self.customer_combo.after_idle(lambda: self.customer_combo.icursor(cursor_pos))
                     
         except Exception as e:
             # Log any errors but don't crash the application
             print(f"Error in filter_customers: {str(e)}")
+    
+    def schedule_filter(self):
+        """Schedule filtering with a small delay to avoid rapid calls"""
+        # Cancel any pending filter calls
+        if hasattr(self, 'filter_after_id'):
+            self.after_cancel(self.filter_after_id)
+        
+        # Schedule new filter call with a small delay
+        self.filter_after_id = self.after(100, self.delayed_filter)
+    
+    def delayed_filter(self):
+        """Delayed filter function to prevent excessive database calls"""
+        # Create a dummy event object for the filter function
+        class DummyEvent:
+            def __init__(self):
+                self.keysym = None
+        
+        self.filter_customers(DummyEvent())
     
     def on_customer_selected(self, event):
         """Handle customer selection from dropdown"""
@@ -195,6 +215,11 @@ class SalesFrame(tk.Frame):
         
         if selection >= 0 and selection in self.customer_data:
             customer_info = self.customer_data[selection]
+            
+            # Check if "Add New Customer" was selected
+            if customer_info["id"] == "new":
+                self.open_add_customer_dialog()
+                return
             
             # Update current customer
             self.current_customer = {
@@ -264,11 +289,65 @@ class SalesFrame(tk.Frame):
         # Bind events for dropdown with placeholder behavior
         self.customer_combo.bind("<FocusIn>", on_combo_focusin)
         self.customer_combo.bind("<FocusOut>", on_combo_focusout)
-        self.customer_combo.bind("<KeyRelease>", self.filter_customers)
+        self.customer_combo.bind("<KeyRelease>", self.on_customer_key_release)
         self.customer_combo.bind("<<ComboboxSelected>>", self.on_customer_selected)
+        self.customer_combo.bind("<Return>", self.on_customer_enter)
+        
+        # Set up trace for real-time filtering
+        self.trace_id = self.customer_var.trace_add("write", lambda *args: self.schedule_filter())
         
         # Load initial customer list
         self.load_customers_for_dropdown()
+    
+    def on_customer_key_release(self, event):
+        """Handle key release events in customer combobox"""
+        # Handle specific keys without triggering filter
+        if event.keysym in ('Return', 'KP_Enter', 'Tab', 'Escape', 'Up', 'Down'):
+            return
+        
+        # For other keys, the trace will handle filtering
+        pass
+    
+    def on_customer_enter(self, event):
+        """Handle Enter key in customer combobox"""
+        current_selection = self.customer_combo.current()
+        
+        # If a valid selection is made
+        if current_selection >= 0 and current_selection in self.customer_data:
+            customer_info = self.customer_data[current_selection]
+            
+            # Check if "Add New Customer" was selected
+            if customer_info["id"] == "new":
+                self.open_add_customer_dialog()
+                return "break"
+            
+            # Otherwise, select the customer
+            self.on_customer_selected(event)
+            return "break"
+        
+        # If no selection but text exists, try to find matching customer
+        search_text = self.customer_var.get().strip()
+        if search_text and search_text.lower() != "search customer":
+            # Look for exact match or close match
+            for idx, customer_info in self.customer_data.items():
+                if customer_info["name"].lower().startswith(search_text.lower()):
+                    self.customer_combo.current(idx)
+                    self.on_customer_selected(event)
+                    return "break"
+            
+            # No match found, offer to add new customer
+            if messagebox.askyesno("Customer Not Found", 
+                                 f"Customer '{search_text}' not found.\n\nWould you like to add this as a new customer?"):
+                self.open_add_customer_dialog(default_name=search_text)
+                return "break"
+    
+    def open_add_customer_dialog(self, default_name=""):
+        """Open the add customer dialog with optional default name"""
+        # Reset customer combobox to avoid conflicts
+        self.customer_var.set("Search Customer")
+        
+        # Call the existing change_customer method with add_new=True
+        self.change_customer(add_new=True, default_name=default_name)
         
         # Walk-in customer button with clean styling
         walkin_btn = tk.Button(container,
@@ -1904,7 +1983,7 @@ class SalesFrame(tk.Frame):
             # Refresh product list to display updated stock
             self.load_products()
     
-    def change_customer(self, add_new=False):
+    def change_customer(self, add_new=False, default_name=""):
         """Change the customer for this sale"""
         # Get current customer
         current_customer_id = self.current_customer["id"]
@@ -1942,7 +2021,7 @@ class SalesFrame(tk.Frame):
                    width=15,
                    anchor="w").grid(row=0, column=0, sticky="w")
             
-            name_var = tk.StringVar()
+            name_var = tk.StringVar(value=default_name)
             name_entry = tk.Entry(name_frame, 
                                 textvariable=name_var,
                                 font=FONTS["regular"],
@@ -4363,6 +4442,11 @@ class SalesFrame(tk.Frame):
         
         # Get the widget that currently has focus
         focused_widget = self.focus_get()
+        
+        # Ctrl+D to add new customer (global shortcut)
+        if ctrl and key.lower() == "d":
+            self.open_add_customer_dialog()
+            return "break"
         
         # Tab key to cycle focus
         if key == "Tab":
