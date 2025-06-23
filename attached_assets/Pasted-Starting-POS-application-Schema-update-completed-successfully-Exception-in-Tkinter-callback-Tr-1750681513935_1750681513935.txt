@@ -1,0 +1,43 @@
+Starting POS application...
+Schema update completed successfully
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 57, in <lambda>
+    self.bind_all("<Control-d>", lambda event: self.open_add_customer_dialog())
+                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 424, in open_add_customer_dialog
+    self.change_customer(add_new=True, default_name=default_name)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 2070, in change_customer
+    dialog = tk.Toplevel(self)
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\site-packages\ttkbootstrap\style.py", line 5318, in __init__wrapper
+    func(self, *args, **kwargs)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2823, in __init__
+    BaseWidget.__init__(self, master, 'toplevel', cnf, {}, extra)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2774, in __init__
+    self.tk.call(
+    ~~~~~~~~~~~~^
+        (widgetName, self._w) + extra + self._options(cnf))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: bad window path name ".!frame.!dashboard.!frame3.!salesframe"
+Error in filter_customers: invalid command name ".!frame.!dashboard.!frame3.!salesframe.!frame.!frame.!frame.!frame.!combobox"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 58, in <lambda>
+    self.bind_all("<Control-h>", lambda event: self.show_customer_purchase_history())
+                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\sales.py", line 459, in show_customer_purchase_history
+    temp_customer_mgmt.view_history()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\customer_management.py", line 609, in view_history
+    customer_id = self.customer_tree.item(selection[0])["values"][0]
+                  ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+TypeError: SalesFrame.show_customer_purchase_history.<locals>.MockTreeView.item() missing 1 required positional argument: 'key'
