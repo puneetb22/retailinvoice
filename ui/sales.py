@@ -1170,7 +1170,16 @@ class SalesFrame(tk.Frame):
                     existing_item["quantity"] = new_quantity
                     existing_item["total"] = new_total
                     existing_item["price"] = item_price  # Update price to batch price
-                    print(f"DEBUG: Updated existing cart item. New quantity: {new_quantity}")
+                    
+                    # Update batch information if this item has a specific batch
+                    if selected_batch[0]:
+                        existing_item.update({
+                            "batch_id": selected_batch[0]['id'],
+                            "batch_number": selected_batch[0]['number'],
+                            "expiry_date": selected_batch[0]['expiry']
+                        })
+                    
+                    print(f"DEBUG: Updated existing cart item. New quantity: {new_quantity}, batch_id: {existing_item.get('batch_id', 'None')}")
                     
                     # Update reserved inventory
                     if product_id not in self.reserved_inventory:
@@ -1198,6 +1207,7 @@ class SalesFrame(tk.Frame):
                             "batch_number": selected_batch[0]['number'],
                             "expiry_date": selected_batch[0]['expiry']
                         })
+                        print(f"DEBUG: Added cart item with batch_id: {selected_batch[0]['id']} for product {product_id}")
                     
                     self.cart_items.append(cart_item)
                     
@@ -4062,62 +4072,103 @@ class SalesFrame(tk.Frame):
                 
                 # Update inventory for database products
                 if item["product_id"]:
-                    # Get batches for this product, starting with oldest expiry
-                    # Add error handling for missing expiry_date
-                    try:
-                        batches = db.fetchall("""
-                            SELECT id, quantity
-                            FROM batches
-                            WHERE product_id = ? AND quantity > 0 
-                            AND (expiry_date > date('now') OR expiry_date IS NULL)
-                            ORDER BY expiry_date ASC NULLS LAST
-                        """, (item["product_id"],))
-                    except Exception as e:
-                        # SQLite might not support NULLS LAST, try simpler query
-                        batches = db.fetchall("""
-                            SELECT id, quantity
-                            FROM batches
-                            WHERE product_id = ? AND quantity > 0
-                            ORDER BY CASE WHEN expiry_date IS NULL THEN 1 ELSE 0 END, expiry_date ASC
-                        """, (item["product_id"],))
+                    batch_id = item.get("batch_id")
+                    quantity = item["quantity"]
                     
-                    # Handle empty batch results
-                    if not batches:
-                        print(f"Warning: No batches found for product {item['product_id']} - {item['name']}")
-                        continue
-                    
-                    remaining_qty = item["quantity"]
-                    for batch_row in batches:
-                        # Handle potential tuple index errors
-                        if len(batch_row) < 2:
-                            print(f"Warning: Invalid batch data for product {item['product_id']}: {batch_row}")
-                            continue
+                    if batch_id:
+                        # Specific batch was selected - deduct from that batch only
+                        print(f"DEBUG: Deducting {quantity} units from specific batch {batch_id} for product {item['product_id']}")
+                        
+                        # Get current batch quantity
+                        batch_info = db.fetchone("""
+                            SELECT quantity FROM batches WHERE id = ?
+                        """, (batch_id,))
+                        
+                        if batch_info and batch_info[0] >= quantity:
+                            # Update batch quantity
+                            db.execute("""
+                                UPDATE batches
+                                SET quantity = quantity - ?
+                                WHERE id = ?
+                            """, (quantity, batch_id))
                             
-                        batch_id, batch_qty = batch_row
-                        if remaining_qty <= 0:
-                            break
+                            # Record inventory movement
+                            try:
+                                db.insert("inventory_movements", {
+                                    "product_id": item["product_id"],
+                                    "batch_id": batch_id,
+                                    "quantity": -quantity,
+                                    "movement_type": "SALE",
+                                    "reference_id": sale_item_id,
+                                    "movement_date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                })
+                            except Exception as e:
+                                print(f"Warning: Could not record inventory movement: {e}")
+                            
+                            print(f"DEBUG: Successfully deducted {quantity} units from batch {batch_id}")
+                        else:
+                            available = batch_info[0] if batch_info else 0
+                            print(f"WARNING: Insufficient stock in batch {batch_id}. Available: {available}, Required: {quantity}")
+                    else:
+                        # No specific batch - use FEFO logic as fallback
+                        print(f"DEBUG: No specific batch selected, using FEFO logic for product {item['product_id']}")
                         
-                        # How much to take from this batch
-                        batch_deduction = min(remaining_qty, batch_qty)
+                        # Get batches for this product, starting with oldest expiry
+                        try:
+                            batches = db.fetchall("""
+                                SELECT id, quantity
+                                FROM batches
+                                WHERE product_id = ? AND quantity > 0 
+                                AND (expiry_date > date('now') OR expiry_date IS NULL)
+                                ORDER BY CASE WHEN expiry_date IS NULL THEN 1 ELSE 0 END, expiry_date ASC
+                            """, (item["product_id"],))
+                        except Exception as e:
+                            print(f"Error getting batches: {e}")
+                            continue
                         
-                        # Update batch quantity
-                        db.execute("""
-                            UPDATE batches
-                            SET quantity = quantity - ?
-                            WHERE id = ?
-                        """, (batch_deduction, batch_id))
+                        # Handle empty batch results
+                        if not batches:
+                            print(f"Warning: No batches found for product {item['product_id']} - {item['name']}")
+                            continue
                         
-                        # Record inventory movement
-                        db.insert("inventory_movements", {
-                            "product_id": item["product_id"],
-                            "batch_id": batch_id,
-                            "quantity": -batch_deduction,
-                            "movement_type": "SALE",
-                            "reference_id": sale_item_id,
-                            "movement_date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        })
-                        
-                        remaining_qty -= batch_deduction
+                        remaining_qty = quantity
+                        for batch_row in batches:
+                            # Handle potential tuple index errors
+                            if len(batch_row) < 2:
+                                print(f"Warning: Invalid batch data for product {item['product_id']}: {batch_row}")
+                                continue
+                                
+                            batch_id, batch_qty = batch_row
+                            if remaining_qty <= 0:
+                                break
+                            
+                            # How much to take from this batch
+                            batch_deduction = min(remaining_qty, batch_qty)
+                            
+                            # Update batch quantity
+                            db.execute("""
+                                UPDATE batches
+                                SET quantity = quantity - ?
+                                WHERE id = ?
+                            """, (batch_deduction, batch_id))
+                            
+                            # Record inventory movement
+                            try:
+                                db.insert("inventory_movements", {
+                                    "product_id": item["product_id"],
+                                    "batch_id": batch_id,
+                                    "quantity": -batch_deduction,
+                                    "movement_type": "SALE",
+                                    "reference_id": sale_item_id,
+                                    "movement_date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                })
+                            except Exception as e:
+                                print(f"Warning: Could not record inventory movement: {e}")
+                            
+                            remaining_qty -= batch_deduction
+                            
+                        if remaining_qty > 0:
+                            print(f"WARNING: Could not deduct full quantity. Remaining: {remaining_qty}")
             
             # If credit sale or split with credit, record the transaction
             if payment_data["payment_type"] == "CREDIT" or (payment_data["payment_type"] == "SPLIT" and credit_amount > 0):
