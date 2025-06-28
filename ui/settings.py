@@ -7,6 +7,7 @@ from tkinter import ttk, messagebox
 import datetime
 from assets.styles import COLORS, FONTS, STYLES, set_theme
 from utils.config import save_config
+from utils.theme_manager import ThemeManager
 try:
     import ttkbootstrap as ttk_bootstrap
     from ttkbootstrap.themes import standard
@@ -958,11 +959,7 @@ class SettingsFrame(tk.Frame):
         
     def show_keyboard_shortcuts(self):
         """Display keyboard shortcuts help"""
-        shortcuts_window = tk.Toplevel(self)
-        shortcuts_window.title("Keyboard Shortcuts")
-        shortcuts_window.geometry("600x500")
-        shortcuts_window.resizable(False, False)
-        shortcuts_window.configure(bg=COLORS["bg_primary"])
+        shortcuts_window = ThemeManager.create_themed_dialog(self, "Keyboard Shortcuts", "600x500")
         
         # Create content
         tk.Label(shortcuts_window, 
@@ -1104,6 +1101,32 @@ class SettingsFrame(tk.Frame):
                                    anchor="w")
             shortcut_desc.pack(side=tk.LEFT, padx=10, pady=3, fill=tk.X, expand=True)
                 
+    def refresh_colors(self):
+        """Refresh colors when theme changes"""
+        try:
+            # Update main frame
+            self.configure(bg=COLORS["bg_primary"])
+            
+            # Update notebook styling
+            if hasattr(self, 'notebook'):
+                ThemeManager.theme_notebook(self.notebook)
+            
+            # Recursively update all widgets
+            self._refresh_widget_colors(self)
+            
+        except Exception as e:
+            print(f"Error refreshing settings colors: {e}")
+    
+    def _refresh_widget_colors(self, widget):
+        """Recursively refresh widget colors"""
+        try:
+            ThemeManager.apply_widget_theme(widget)
+            
+            for child in widget.winfo_children():
+                self._refresh_widget_colors(child)
+        except:
+            pass
+    
     def on_show(self):
         """Called when frame is shown"""
         # Refresh data from config
@@ -1126,6 +1149,9 @@ class SettingsFrame(tk.Frame):
         self.theme_mode_var.set(self.controller.config.get("app_theme", "light"))
         self.theme_type_var.set(self.controller.config.get("theme_type", "default"))
         self.update_theme_preview()
+        
+        # Refresh colors to ensure proper theming
+        self.refresh_colors()
     
     def open_theme_creator(self):
         """Open the ttkbootstrap TTK Creator"""

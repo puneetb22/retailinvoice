@@ -405,3 +405,46 @@ def update_styles():
     global STYLES
     STYLES.update(get_widget_styles())
     STYLES.update(get_button_styles())
+
+def refresh_application_theme(root_widget=None):
+    """
+    Refresh theme across the entire application
+    
+    Args:
+        root_widget: The root widget to start theme refresh from
+    """
+    try:
+        # Import here to avoid circular imports
+        from utils.theme_manager import ThemeManager
+        
+        if root_widget:
+            # Recursively apply theme to all widgets
+            _refresh_widget_theme_recursive(root_widget, ThemeManager)
+            
+    except Exception as e:
+        print(f"Error refreshing application theme: {e}")
+
+def _refresh_widget_theme_recursive(widget, theme_manager):
+    """Recursively refresh theme for all widgets"""
+    try:
+        # Apply theme to current widget
+        theme_manager.apply_widget_theme(widget)
+        
+        # Special handling for specific widget types
+        widget_class = widget.winfo_class()
+        if widget_class == "Toplevel":
+            # Theme dialog windows
+            theme_manager.theme_dialog(widget)
+        elif hasattr(widget, 'refresh_colors'):
+            # Call custom refresh method if available
+            widget.refresh_colors()
+        
+        # Recursively process children
+        try:
+            for child in widget.winfo_children():
+                _refresh_widget_theme_recursive(child, theme_manager)
+        except:
+            pass
+            
+    except Exception as e:
+        pass

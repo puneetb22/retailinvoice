@@ -103,6 +103,9 @@ class POSApplication(tk.Tk):
             # Call on_show method if exists (for refreshing data)
             if hasattr(frame, 'on_show'):
                 frame.on_show()
+            # Call refresh_colors if exists (for theme updates)
+            if hasattr(frame, 'refresh_colors'):
+                frame.refresh_colors()
 
     def navigate_to_menu(self, module_name):
         """Navigate to a specific menu module from anywhere in the app"""
@@ -113,6 +116,10 @@ class POSApplication(tk.Tk):
         dashboard = self.frames.get("dashboard")
         if dashboard and hasattr(dashboard, 'load_module'):
             dashboard.load_module(module_name)
+            
+            # Ensure theme is properly applied to new frame
+            if hasattr(dashboard, 'refresh_colors'):
+                dashboard.refresh_colors()
 
     def show_dashboard(self):
         """Show the main dashboard"""

@@ -301,17 +301,85 @@ class Dashboard(tk.Frame):
         """Refresh colors when theme changes"""
         try:
             # Update main frame background
-            self.configure(bg=COLORS["bg"])
+            self.configure(bg=COLORS["bg_primary"])
 
             # Update header frame
             if hasattr(self, 'header_frame'):
-                self.header_frame.configure(bg=COLORS["bg"])
+                self.header_frame.configure(bg=COLORS["primary"])
+                
+            # Update shop label
+            for widget in self.header_frame.winfo_children():
+                if isinstance(widget, tk.Label):
+                    widget.configure(bg=COLORS["primary"], fg=COLORS["text_white"])
+                elif isinstance(widget, tk.Frame):
+                    widget.configure(bg=COLORS["primary"])
+                    # Update datetime label and bell icon
+                    for subwidget in widget.winfo_children():
+                        if isinstance(subwidget, tk.Label):
+                            subwidget.configure(bg=COLORS["primary"], fg=COLORS["text_white"])
+                        elif isinstance(subwidget, tk.Button):
+                            subwidget.configure(
+                                bg=COLORS["primary"], 
+                                fg=COLORS["text_white"],
+                                activebackground=COLORS.get("primary_light", COLORS["primary"]),
+                                activeforeground=COLORS["text_white"]
+                            )
+
+            # Update navigation frame
+            if hasattr(self, 'nav_frame'):
+                self.nav_frame.configure(bg=COLORS["bg_secondary"])
+                
+                # Update nav title
+                for widget in self.nav_frame.winfo_children():
+                    if isinstance(widget, tk.Label) and "MENU" in widget.cget("text"):
+                        widget.configure(bg=COLORS["bg_secondary"], fg=COLORS["text_primary"])
+
+            # Update content frame
+            if hasattr(self, 'content_frame'):
+                self.content_frame.configure(
+                    bg=COLORS.get("bg_white", COLORS["bg_primary"]),
+                    highlightbackground=COLORS["border"]
+                )
+
+            # Update navigation buttons with current selection
+            self.refresh_nav_buttons()
 
             # Update all child widgets recursively
             self.update_widget_colors_recursive(self)
 
         except Exception as e:
             print(f"Error refreshing dashboard colors: {e}")
+            
+    def refresh_nav_buttons(self):
+        """Refresh navigation button colors while preserving selection state"""
+        current_selected = None
+        
+        # Find currently selected button
+        nav_items = ["sales", "sales_history", "inventory", "customers", "reports", "accounting", "settings", "backup", "cloud_sync"]
+        for item in nav_items:
+            if hasattr(self, f"btn_{item}"):
+                btn = getattr(self, f"btn_{item}")
+                if btn.cget("bg") == COLORS["primary"]:
+                    current_selected = item
+                    break
+        
+        # Update all buttons to normal state
+        normal_font = FONTS["nav_item"]
+        for item in nav_items:
+            if hasattr(self, f"btn_{item}"):
+                btn = getattr(self, f"btn_{item}")
+                btn.configure(
+                    bg=COLORS["bg_secondary"],
+                    fg=COLORS["text_primary"],
+                    font=normal_font,
+                    activebackground=COLORS.get("primary_light", COLORS["primary"]),
+                    activeforeground=COLORS["text_white"],
+                    highlightbackground=COLORS["bg_secondary"]
+                )
+        
+        # Restore selected state if there was one
+        if current_selected:
+            self.update_nav_selection(current_selected)
 
     def update_widget_colors_recursive(self, widget):
         """Recursively update widget colors"""
@@ -319,28 +387,102 @@ class Dashboard(tk.Frame):
             widget_class = widget.winfo_class()
 
             if widget_class == "Frame":
-                widget.configure(bg=COLORS.get("bg", "#ffffff"))
-            elif widget_class == "Label":
-                widget.configure(
-                    bg=COLORS.get("bg", "#ffffff"),
-                    fg=COLORS.get("fg", "#000000")
-                )
-            elif widget_class == "Button":
-                # Check if it's a navigation button (has specific styling)
-                current_bg = str(widget.cget("bg"))
-                if "primary" in str(widget.cget("text")).lower() or current_bg == COLORS.get("primary", "#2780e3"):
-                    widget.configure(
-                        bg=COLORS.get("primary", "#2780e3"),
-                        fg=COLORS.get("text_white", "#ffffff"),
-                        activebackground=COLORS.get("primary_dark", COLORS.get("primary", "#2780e3"))
-                    )
+                # Different frame types get different backgrounds
+                parent_class = widget.master.winfo_class() if widget.master else None
+                if parent_class == "Frame" and hasattr(widget.master, 'cget'):
+                    try:
+                        parent_bg = widget.master.cget("bg")
+                        if parent_bg == COLORS["primary"]:
+                            widget.configure(bg=COLORS["primary"])
+                        elif parent_bg == COLORS["bg_secondary"]:
+                            widget.configure(bg=COLORS["bg_secondary"])
+                        else:
+                            widget.configure(bg=COLORS.get("bg_primary", "#ffffff"))
+                    except:
+                        widget.configure(bg=COLORS.get("bg_primary", "#ffffff"))
                 else:
-                    widget.configure(
-                        bg=COLORS.get("bg_secondary", COLORS.get("bg", "#ffffff")),
-                        fg=COLORS.get("fg", "#000000")
-                    )
+                    widget.configure(bg=COLORS.get("bg_primary", "#ffffff"))
+                    
+            elif widget_class == "Label":
+                # Determine appropriate colors based on parent
+                parent_bg = COLORS.get("bg_primary", "#ffffff")
+                try:
+                    if hasattr(widget.master, 'cget'):
+                        parent_bg = widget.master.cget("bg")
+                except:
+                    pass
+                    
+                if parent_bg == COLORS["primary"]:
+                    widget.configure(bg=COLORS["primary"], fg=COLORS["text_white"])
+                elif parent_bg == COLORS["bg_secondary"]:
+                    widget.configure(bg=COLORS["bg_secondary"], fg=COLORS["text_primary"])
+                else:
+                    widget.configure(bg=COLORS.get("bg_primary", "#ffffff"), fg=COLORS.get("text_primary", "#000000"))
+                    
+            elif widget_class == "Button":
+                # Handle different button types
+                try:
+                    current_bg = str(widget.cget("bg"))
+                    button_text = str(widget.cget("text")).lower()
+                    
+                    # Navigation buttons (keep their current selection state)
+                    if any(nav_text in button_text for nav_text in ["sales", "inventory", "customers", "reports", "accounting", "settings", "backup", "cloud"]):
+                        # Don't modify nav buttons here - they're handled separately
+                        pass
+                    # Primary action buttons
+                    elif current_bg == COLORS.get("primary", "#2780e3") or "primary" in button_text:
+                        widget.configure(
+                            bg=COLORS["primary"],
+                            fg=COLORS["text_white"],
+                            activebackground=COLORS.get("primary_light", COLORS["primary"]),
+                            activeforeground=COLORS["text_white"]
+                        )
+                    # Danger buttons
+                    elif "exit" in button_text or "delete" in button_text or current_bg == COLORS.get("danger", "#ff0039"):
+                        widget.configure(
+                            bg=COLORS.get("danger", "#ff0039"),
+                            fg=COLORS["text_white"],
+                            activebackground=COLORS.get("danger", "#ff0039"),
+                            activeforeground=COLORS["text_white"]
+                        )
+                    # Secondary buttons
+                    else:
+                        widget.configure(
+                            bg=COLORS.get("bg_secondary", COLORS.get("bg_primary", "#ffffff")),
+                            fg=COLORS.get("text_primary", "#000000"),
+                            activebackground=COLORS.get("primary_light", COLORS["primary"]),
+                            activeforeground=COLORS["text_white"]
+                        )
+                except:
+                    pass
+                    
+            elif widget_class == "Entry":
+                widget.configure(
+                    bg=COLORS.get("inputbg", "#ffffff"),
+                    fg=COLORS.get("inputfg", "#000000"),
+                    insertbackground=COLORS.get("text_primary", "#000000"),
+                    selectbackground=COLORS.get("selectbg", "#7e8081"),
+                    selectforeground=COLORS.get("selectfg", "#ffffff")
+                )
+                
+            elif widget_class == "Text":
+                widget.configure(
+                    bg=COLORS.get("inputbg", "#ffffff"),
+                    fg=COLORS.get("inputfg", "#000000"),
+                    insertbackground=COLORS.get("text_primary", "#000000"),
+                    selectbackground=COLORS.get("selectbg", "#7e8081"),
+                    selectforeground=COLORS.get("selectfg", "#ffffff")
+                )
+                
+            elif widget_class == "Listbox":
+                widget.configure(
+                    bg=COLORS.get("inputbg", "#ffffff"),
+                    fg=COLORS.get("inputfg", "#000000"),
+                    selectbackground=COLORS.get("selectbg", "#7e8081"),
+                    selectforeground=COLORS.get("selectfg", "#ffffff")
+                )
 
-            # Update children
+            # Update children recursively
             try:
                 for child in widget.winfo_children():
                     self.update_widget_colors_recursive(child)
