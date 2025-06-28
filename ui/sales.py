@@ -1672,6 +1672,10 @@ class SalesFrame(tk.Frame):
         discount_entry.bind("<Return>", lambda event: hsn_combo.focus_set())
         hsn_combo.bind("<Return>", lambda event: add_item())
         
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
+        dialog.focus_set()
+        
         # Wait for dialog to close
         dialog.wait_window()
     
@@ -2014,6 +2018,10 @@ class SalesFrame(tk.Frame):
         
         # Bind Enter key to update_item function
         dialog.bind("<Return>", lambda event: update_item())
+        
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
+        dialog.focus_set()
         
         # Wait for dialog to close
         dialog.wait_window()
@@ -2530,6 +2538,10 @@ class SalesFrame(tk.Frame):
             # Bind Enter key on treeview
             customer_tree.bind("<Return>", lambda event: select_customer())
             
+            # Bind ESC key to close dialog
+            dialog.bind("<Escape>", lambda event: dialog.destroy())
+            dialog.focus_set()
+            
             # Wait for dialog to close
             dialog.wait_window()
     
@@ -2683,6 +2695,10 @@ class SalesFrame(tk.Frame):
         
         # Bind Enter key
         dialog.bind("<Return>", lambda event: suspend())
+        
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
+        dialog.focus_set()
         
         # Wait for dialog to close
         dialog.wait_window()
@@ -3006,6 +3022,10 @@ class SalesFrame(tk.Frame):
         
         # Double-click to retrieve
         bills_tree.bind("<Double-1>", lambda event: retrieve_bill())
+        
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
+        dialog.focus_set()
         
         # Wait for dialog to close
         dialog.wait_window()
@@ -3631,6 +3651,10 @@ class SalesFrame(tk.Frame):
         # Bind Enter key to complete button
         dialog.bind("<Return>", lambda event: complete_sale())
         
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
+        dialog.focus_set()
+        
         # Wait for dialog to close
         dialog.wait_window()
     
@@ -3951,6 +3975,10 @@ class SalesFrame(tk.Frame):
                 field.bind("<Return>", lambda event, nf=next_field: nf.focus_set())
             else:
                 field.bind("<Return>", lambda event: complete_sale())
+        
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
+        dialog.focus_set()
         
         # Wait for dialog to close
         dialog.wait_window()
