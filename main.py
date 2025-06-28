@@ -159,6 +159,12 @@ class POSApplication(tk.Tk):
         
         # Dashboard shortcuts
         self.add_shortcut_section(scrollable_frame, "Dashboard", [
+            ("F1", "Open Sales & CheckOut"),
+            ("F2", "Open Sales History"),
+            ("F3", "Open Inventory"),
+            ("F4", "Open Customers"),
+            ("F5", "Open Reports"),
+            ("F6", "Open Accounting"),
             ("Arrow Keys", "Navigate between menu items"),
             ("Enter", "Select menu item")
         ])
