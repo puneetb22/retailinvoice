@@ -735,3 +735,249 @@ class SettingsFrame(tk.Frame):
             if cursor.fetchone()[0] > 0:
                 cursor.execute("UPDATE settings SET value = ? WHERE key = ?", (theme_type, "theme_type"))
             else:
+                cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ("theme_type", theme_type))
+
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error saving system settings to database: {e}")
+            return False
+
+    def on_theme_type_change(self, event=None):
+        """Handle theme type change"""
+        self.update_theme_preview()
+
+    def on_theme_mode_change(self):
+        """Handle theme mode change"""
+        self.update_theme_preview()
+
+    def update_theme_preview(self):
+        """Update the theme preview colors"""
+        try:
+            # Clear existing preview
+            for widget in self.preview_colors_frame.winfo_children():
+                widget.destroy()
+
+            # Get the current theme selection
+            theme_type = self.theme_type_var.get()
+            theme_mode = self.theme_mode_var.get()
+
+            # Get theme colors from styles
+            from assets.styles import get_theme_colors
+            colors = get_theme_colors(theme_mode, theme_type)
+
+            # Create color swatches
+            color_names = ['primary', 'secondary', 'success', 'danger', 'warning', 'info']
+            for i, color_name in enumerate(color_names):
+                if color_name in colors:
+                    color_frame = tk.Frame(self.preview_colors_frame, 
+                                         bg=colors[color_name], 
+                                         width=30, 
+                                         height=20,
+                                         relief="solid",
+                                         borderwidth=1)
+                    color_frame.pack(side=tk.LEFT, padx=2)
+
+                    # Create tooltip
+                    def create_tooltip(widget, text):
+                        def on_enter(event):
+                            tooltip = tk.Toplevel()
+                            tooltip.wm_overrideredirect(True)
+                            tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
+                            label = tk.Label(tooltip, text=text, background="lightyellow")
+                            label.pack()
+                        def on_leave(event):
+                            for child in widget.winfo_toplevel().winfo_children():
+                                if isinstance(child, tk.Toplevel):
+                                    child.destroy()
+                        widget.bind("<Enter>", on_enter)
+                        widget.bind("<Leave>", on_leave)
+
+                    create_tooltip(color_frame, f"{color_name}: {colors[color_name]}")
+
+        except Exception as e:
+            print(f"Error updating theme preview: {e}")
+
+    def apply_theme(self):
+        """Apply the selected theme"""
+        try:
+            theme_mode = self.theme_mode_var.get()
+            theme_type = self.theme_type_var.get()
+
+            # Apply theme
+            from assets.styles import set_theme
+            set_theme(theme_mode, theme_type)
+
+            # Update application theme
+            self.update_application_theme()
+
+            messagebox.showinfo("Theme Applied", f"Theme '{theme_type}' in '{theme_mode}' mode has been applied successfully!")
+
+        except Exception as e:
+            messagebox.showerror("Theme Error", f"Failed to apply theme: {e}")
+
+    def update_application_theme(self):
+        """Update the application theme across all components"""
+        try:
+            # Get the main controller and update all frames
+            if hasattr(self.controller, 'frames'):
+                for frame_name, frame in self.controller.frames.items():
+                    if hasattr(frame, 'update_theme'):
+                        frame.update_theme()
+
+            # Force refresh of current frame
+            self.controller.show_frame("SettingsFrame")
+
+        except Exception as e:
+            print(f"Error updating application theme: {e}")
+
+    def open_theme_creator(self):
+        """Open the ttkbootstrap TTK Creator"""
+        try:
+            if TTK_BOOTSTRAP_AVAILABLE:
+                import subprocess
+                import sys
+                subprocess.Popen([sys.executable, "-m", "ttkbootstrap.ttkcreator"])
+            else:
+                messagebox.showerror("TTK Creator", "ttkbootstrap is not available. Please install it first.")
+        except Exception as e:
+            messagebox.showerror("TTK Creator Error", f"Failed to open TTK Creator: {e}")
+
+    def reload_themes(self):
+        """Reload available themes from styles"""
+        try:
+            # Reload the styles module
+            import importlib
+            import assets.styles
+            importlib.reload(assets.styles)
+
+            # Update available themes
+            from assets.styles import get_available_themes
+            self.available_theme_types = get_available_themes()
+
+            # Update the dropdown
+            theme_type_dropdown = None
+            for child in self.winfo_children():
+                if isinstance(child, tk.Frame):
+                    for subchild in child.winfo_children():
+                        if isinstance(subchild, ttk.Notebook):
+                            for tab in subchild.tabs():
+                                tab_frame = subchild.nametowidget(tab)
+                                for widget in tab_frame.winfo_children():
+                                    if isinstance(widget, tk.Frame):
+                                        for subwidget in widget.winfo_children():
+                                            if isinstance(subwidget, tk.LabelFrame):
+                                                for labelframe_child in subwidget.winfo_children():
+                                                    if isinstance(labelframe_child, ttk.Combobox):
+                                                        theme_type_dropdown = labelframe_child
+                                                        break
+
+            if theme_type_dropdown:
+                theme_type_dropdown['values'] = self.available_theme_types
+
+            messagebox.showinfo("Themes Reloaded", "Available themes have been reloaded successfully!")
+
+        except Exception as e:
+            messagebox.showerror("Reload Error", f"Failed to reload themes: {e}")
+
+    def show_keyboard_shortcuts(self):
+        """Show keyboard shortcuts dialog"""
+        # Create a new window for shortcuts
+        shortcuts_window = tk.Toplevel(self)
+        shortcuts_window.title("Keyboard Shortcuts")
+        shortcuts_window.geometry("600x400")
+        shortcuts_window.configure(bg=COLORS["bg_primary"])
+
+        # Make it modal
+        shortcuts_window.transient(self)
+        shortcuts_window.grab_set()
+
+        # Header
+        header_label = tk.Label(shortcuts_window,
+                              text="Keyboard Shortcuts",
+                              font=FONTS["heading"],
+                              bg=COLORS["bg_primary"],
+                              fg=COLORS["text_primary"])
+        header_label.pack(pady=20)
+
+        # Create a frame for shortcuts list
+        shortcuts_frame = tk.Frame(shortcuts_window, bg=COLORS["bg_primary"])
+        shortcuts_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        # Shortcuts data
+        shortcuts_data = [
+            ("F1", "Dashboard"),
+            ("F2", "Sales"),
+            ("F3", "Inventory Management"),
+            ("F4", "Customer Management"),
+            ("F5", "Reports"),
+            ("F6", "Accounting"),
+            ("F7", "Settings"),
+            ("F8", "Backup"),
+            ("Ctrl+N", "New Sale"),
+            ("Ctrl+S", "Save Current Form"),
+            ("Ctrl+F", "Search/Find"),
+            ("Ctrl+P", "Print Invoice"),
+            ("Ctrl+Q", "Quit Application"),
+            ("Escape", "Cancel Current Operation"),
+            ("Enter", "Confirm Selection"),
+            ("Tab", "Navigate to Next Field")
+        ]
+
+        # Create headers
+        shortcut_header = tk.Label(shortcuts_frame,
+                                 text="Shortcut",
+                                 font=FONTS["regular_bold"],
+                                 bg=COLORS["bg_primary"],
+                                 fg=COLORS["text_primary"])
+        shortcut_header.grid(row=0, column=0, sticky="w", padx=20, pady=5)
+
+        action_header = tk.Label(shortcuts_frame,
+                               text="Action",
+                               font=FONTS["regular_bold"],
+                               bg=COLORS["bg_primary"],
+                               fg=COLORS["text_primary"])
+        action_header.grid(row=0, column=1, sticky="w", padx=20, pady=5)
+
+        # Add separator
+        separator = tk.Frame(shortcuts_frame, height=2, bg=COLORS["primary"])
+        separator.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=5)
+
+        # Add shortcuts
+        for i, (shortcut, action) in enumerate(shortcuts_data, start=2):
+            shortcut_label = tk.Label(shortcuts_frame,
+                                    text=shortcut,
+                                    font=FONTS["regular"],
+                                    bg=COLORS["bg_primary"],
+                                    fg=COLORS["primary"])
+            shortcut_label.grid(row=i, column=0, sticky="w", padx=20, pady=2)
+
+            action_label = tk.Label(shortcuts_frame,
+                                  text=action,
+                                  font=FONTS["regular"],
+                                  bg=COLORS["bg_primary"],
+                                  fg=COLORS["text_primary"])
+            action_label.grid(row=i, column=1, sticky="w", padx=20, pady=2)
+
+        # Close button using theme properties
+        close_btn = tk.Button(shortcuts_window,
+                            text="Close",
+                            font=FONTS["regular"],
+                            bg=COLORS["primary"],
+                            fg=COLORS["text_white"],
+                            activebackground=COLORS["primary_light"],
+                            activeforeground=COLORS["text_white"],
+                            padx=20,
+                            pady=5,
+                            cursor="hand2",
+                            command=shortcuts_window.destroy)
+        close_btn.pack(pady=20)
+
+        # Center the window
+        shortcuts_window.update_idletasks()
+        x = (shortcuts_window.winfo_screenwidth() // 2) - (shortcuts_window.winfo_width() // 2)
+        y = (shortcuts_window.winfo_screenheight() // 2) - (shortcuts_window.winfo_height() // 2)
+        shortcuts_window.geometry(f"+{x}+{y}")
+else:
+    print("Settings frame initialization completed successfully.")
