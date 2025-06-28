@@ -368,18 +368,9 @@ class SettingsFrame(tk.Frame):
                                    fg=COLORS["text_primary"])
         theme_type_label.grid(row=0, column=0, sticky="w", pady=5)
         
-        # Available theme types - combine custom themes with ttkbootstrap themes
-        custom_themes = [
-            "default", "modern", "classic", "minimal", "vibrant",
-            "bootstrap", "material", "corporate", "nature", "sunset"
-        ]
-        
-        # Add ttkbootstrap standard themes if available
-        if TTK_BOOTSTRAP_AVAILABLE:
-            ttk_themes = list(standard.STANDARD_THEMES.keys())
-            self.available_theme_types = custom_themes + ttk_themes
-        else:
-            self.available_theme_types = custom_themes
+        # Get all available themes from styles.py
+        from assets.styles import get_available_themes
+        self.available_theme_types = get_available_themes()
         
         self.theme_type_var = tk.StringVar(value=self.controller.config.get("theme_type", "default"))
         
@@ -779,18 +770,6 @@ class SettingsFrame(tk.Frame):
     
     def get_theme_colors(self, theme_type, theme_mode):
         """Get colors for a specific theme type and mode"""
-        # Check if it's a ttkbootstrap theme
-        if TTK_BOOTSTRAP_AVAILABLE and theme_type in standard.STANDARD_THEMES:
-            theme_config = standard.STANDARD_THEMES[theme_type]
-            # Extract colors from ttkbootstrap theme
-            return {
-                "primary": theme_config.get("primary", "#007bff"),
-                "secondary": theme_config.get("secondary", "#6c757d"), 
-                "success": theme_config.get("success", "#28a745"),
-                "warning": theme_config.get("warning", "#ffc107"),
-                "danger": theme_config.get("danger", "#dc3545")
-            }
-        
         # Use the improved theme system from styles.py
         from assets.styles import get_theme_colors as get_styles_theme_colors
         theme_colors = get_styles_theme_colors(theme_type, theme_mode)
@@ -1195,15 +1174,9 @@ class SettingsFrame(tk.Frame):
             import importlib
             importlib.reload(standard)
             
-            # Update available theme types
-            custom_themes = [
-                "default", "modern", "classic", "minimal", "vibrant",
-                "bootstrap", "material", "corporate", "nature", "sunset"
-            ]
-            
-            # Add ttkbootstrap standard themes
-            ttk_themes = list(standard.STANDARD_THEMES.keys())
-            self.available_theme_types = custom_themes + ttk_themes
+            # Update available theme types from styles.py
+            from assets.styles import get_available_themes
+            self.available_theme_types = get_available_themes()
             
             # Update dropdown values
             current_theme = self.theme_type_var.get()

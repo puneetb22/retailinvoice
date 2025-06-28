@@ -92,7 +92,7 @@ class Dashboard(tk.Frame):
         self.update_datetime()
 
         # Side navigation
-        self.nav_frame = tk.Frame(self, bg=COLORS["bg_secondary"], width=220)
+        self.nav_frame = tk.Frame(self, bg=COLORS.get("bg_secondary", COLORS["bg"]), width=220)
         self.nav_frame.pack(side=tk.LEFT, fill=tk.Y)
         self.nav_frame.pack_propagate(False)
 
@@ -116,7 +116,7 @@ class Dashboard(tk.Frame):
         nav_title = tk.Label(self.nav_frame, 
                             text="MENU",
                             font=FONTS["nav_title"],
-                            bg=COLORS["bg_secondary"],
+                            bg=COLORS.get("bg_secondary", COLORS["bg"]),
                             fg=COLORS["text_primary"])
         nav_title.pack(side=tk.TOP, pady=(20, 15), padx=10, anchor="w")
 
@@ -139,7 +139,7 @@ class Dashboard(tk.Frame):
         # Create buttons
         for item in nav_items:
             # Create a frame for each button to ensure consistent layout
-            btn_frame = tk.Frame(self.nav_frame, bg=COLORS["bg_secondary"])
+            btn_frame = tk.Frame(self.nav_frame, bg=COLORS.get("bg_secondary", COLORS["bg"]))
             btn_frame.pack(side=tk.TOP, fill=tk.X, pady=2)
 
             # Create the button with fixed width icon space
@@ -150,7 +150,7 @@ class Dashboard(tk.Frame):
             button_font = (FONTS["nav_item"][0], FONTS["nav_item"][1], "bold") if is_initial_selection else FONTS["nav_item"]
 
             # Set background and foreground colors based on selection - using a darker color for selected text
-            bg_color = COLORS["primary"] if is_initial_selection else COLORS["bg_secondary"]
+            bg_color = COLORS["primary"] if is_initial_selection else COLORS.get("bg_secondary", COLORS["bg"])
             # Changed from text_white to text_white_highlight to improve visibility
             fg_color = "#ffeb3b" if is_initial_selection else COLORS["text_primary"]  # Using a yellow color for selected items
 
@@ -171,7 +171,7 @@ class Dashboard(tk.Frame):
                           justify=tk.LEFT,
                           highlightthickness=3,  # Increased highlight thickness for better visibility
                           highlightcolor=COLORS["primary"],  # Set focus color
-                          highlightbackground=COLORS["bg_secondary"],  # Set inactive color
+                          highlightbackground=COLORS.get("bg_secondary", COLORS["bg"]),  # Set inactive color
                           command=lambda i=item["name"]: self.load_module(i))
             btn.pack(side=tk.TOP, padx=0, pady=3, fill=tk.X)
 
@@ -193,7 +193,7 @@ class Dashboard(tk.Frame):
         exit_btn = tk.Button(self.nav_frame,
                            text="🚪 Exit Application",
                            font=FONTS["nav_item"],
-                           bg=COLORS["bg_secondary"],
+                           bg=COLORS.get("bg_secondary", COLORS["bg"]),
                            fg=COLORS["danger"],
                            bd=0,
                            padx=10,
@@ -206,7 +206,7 @@ class Dashboard(tk.Frame):
                            cursor="hand2",
                            highlightthickness=3,  # Increased highlight thickness for better visibility
                            highlightcolor=COLORS["danger"],  # Set focus color (red for exit)
-                           highlightbackground=COLORS["bg_secondary"],  # Set inactive color
+                           highlightbackground=COLORS.get("bg_secondary", COLORS["bg"]),  # Set inactive color
                            command=self.controller.exit_application)
         exit_btn.pack(side=tk.BOTTOM, padx=0, pady=20, fill=tk.X)
 
@@ -265,7 +265,7 @@ class Dashboard(tk.Frame):
             if hasattr(self, f"btn_{item}"):
                 btn = getattr(self, f"btn_{item}")
                 btn.config(
-                    bg=COLORS["bg_secondary"], 
+                    bg=COLORS.get("bg_secondary", COLORS["bg"]), 
                     fg=COLORS["text_primary"],
                     font=normal_font
                 )
@@ -306,7 +306,7 @@ class Dashboard(tk.Frame):
             # Update header frame
             if hasattr(self, 'header_frame'):
                 self.header_frame.configure(bg=COLORS["primary"])
-                
+
             # Update shop label
             for widget in self.header_frame.winfo_children():
                 if isinstance(widget, tk.Label):
@@ -327,12 +327,12 @@ class Dashboard(tk.Frame):
 
             # Update navigation frame
             if hasattr(self, 'nav_frame'):
-                self.nav_frame.configure(bg=COLORS["bg_secondary"])
-                
+                self.nav_frame.configure(bg=COLORS.get("bg_secondary", COLORS["bg"]))
+
                 # Update nav title
                 for widget in self.nav_frame.winfo_children():
                     if isinstance(widget, tk.Label) and "MENU" in widget.cget("text"):
-                        widget.configure(bg=COLORS["bg_secondary"], fg=COLORS["text_primary"])
+                        widget.configure(bg=COLORS.get("bg_secondary", COLORS["bg"]), fg=COLORS["text_primary"])
 
             # Update content frame
             if hasattr(self, 'content_frame'):
@@ -349,11 +349,11 @@ class Dashboard(tk.Frame):
 
         except Exception as e:
             print(f"Error refreshing dashboard colors: {e}")
-            
+
     def refresh_nav_buttons(self):
         """Refresh navigation button colors while preserving selection state"""
         current_selected = None
-        
+
         # Find currently selected button
         nav_items = ["sales", "sales_history", "inventory", "customers", "reports", "accounting", "settings", "backup", "cloud_sync"]
         for item in nav_items:
@@ -362,21 +362,21 @@ class Dashboard(tk.Frame):
                 if btn.cget("bg") == COLORS["primary"]:
                     current_selected = item
                     break
-        
+
         # Update all buttons to normal state
         normal_font = FONTS["nav_item"]
         for item in nav_items:
             if hasattr(self, f"btn_{item}"):
                 btn = getattr(self, f"btn_{item}")
                 btn.configure(
-                    bg=COLORS["bg_secondary"],
+                    bg=COLORS.get("bg_secondary", COLORS["bg"]),
                     fg=COLORS["text_primary"],
                     font=normal_font,
                     activebackground=COLORS.get("primary_light", COLORS["primary"]),
                     activeforeground=COLORS["text_white"],
-                    highlightbackground=COLORS["bg_secondary"]
+                    highlightbackground=COLORS.get("bg_secondary", COLORS["bg"])
                 )
-        
+
         # Restore selected state if there was one
         if current_selected:
             self.update_nav_selection(current_selected)
@@ -394,15 +394,15 @@ class Dashboard(tk.Frame):
                         parent_bg = widget.master.cget("bg")
                         if parent_bg == COLORS["primary"]:
                             widget.configure(bg=COLORS["primary"])
-                        elif parent_bg == COLORS["bg_secondary"]:
-                            widget.configure(bg=COLORS["bg_secondary"])
+                        elif parent_bg == COLORS.get("bg_secondary", COLORS["bg"]):
+                            widget.configure(bg=COLORS.get("bg_secondary", COLORS["bg"]))
                         else:
                             widget.configure(bg=COLORS.get("bg_primary", "#ffffff"))
                     except:
                         widget.configure(bg=COLORS.get("bg_primary", "#ffffff"))
                 else:
                     widget.configure(bg=COLORS.get("bg_primary", "#ffffff"))
-                    
+
             elif widget_class == "Label":
                 # Determine appropriate colors based on parent
                 parent_bg = COLORS.get("bg_primary", "#ffffff")
@@ -411,20 +411,20 @@ class Dashboard(tk.Frame):
                         parent_bg = widget.master.cget("bg")
                 except:
                     pass
-                    
+
                 if parent_bg == COLORS["primary"]:
                     widget.configure(bg=COLORS["primary"], fg=COLORS["text_white"])
-                elif parent_bg == COLORS["bg_secondary"]:
-                    widget.configure(bg=COLORS["bg_secondary"], fg=COLORS["text_primary"])
+                elif parent_bg == COLORS.get("bg_secondary", COLORS["bg"]):
+                    widget.configure(bg=COLORS.get("bg_secondary", COLORS["bg"]), fg=COLORS["text_primary"])
                 else:
                     widget.configure(bg=COLORS.get("bg_primary", "#ffffff"), fg=COLORS.get("text_primary", "#000000"))
-                    
+
             elif widget_class == "Button":
                 # Handle different button types
                 try:
                     current_bg = str(widget.cget("bg"))
                     button_text = str(widget.cget("text")).lower()
-                    
+
                     # Navigation buttons (keep their current selection state)
                     if any(nav_text in button_text for nav_text in ["sales", "inventory", "customers", "reports", "accounting", "settings", "backup", "cloud"]):
                         # Don't modify nav buttons here - they're handled separately
@@ -455,7 +455,7 @@ class Dashboard(tk.Frame):
                         )
                 except:
                     pass
-                    
+
             elif widget_class == "Entry":
                 widget.configure(
                     bg=COLORS.get("inputbg", "#ffffff"),
@@ -464,7 +464,7 @@ class Dashboard(tk.Frame):
                     selectbackground=COLORS.get("selectbg", "#7e8081"),
                     selectforeground=COLORS.get("selectfg", "#ffffff")
                 )
-                
+
             elif widget_class == "Text":
                 widget.configure(
                     bg=COLORS.get("inputbg", "#ffffff"),
@@ -473,7 +473,7 @@ class Dashboard(tk.Frame):
                     selectbackground=COLORS.get("selectbg", "#7e8081"),
                     selectforeground=COLORS.get("selectfg", "#ffffff")
                 )
-                
+
             elif widget_class == "Listbox":
                 widget.configure(
                     bg=COLORS.get("inputbg", "#ffffff"),

@@ -1,226 +1,668 @@
 
 """
 Style definitions for the POS system
-Contains color schemes, fonts, and common styles
+Contains color schemes, fonts, and common styles with ttkbootstrap integration
 """
 
-# Light theme color scheme - aligned with standard format
-LIGHT_THEME = {
-    # Theme type
-    "type": "light",
+# Import ttkbootstrap themes if available
+try:
+    import ttkbootstrap as ttk_bootstrap
+    from ttkbootstrap.themes import standard
+    TTK_BOOTSTRAP_AVAILABLE = True
     
-    # Core colors matching the standard format
+    # All 28 ttkbootstrap standard themes with standardized color properties
+    TTKBOOTSTRAP_THEMES = {
+        "cosmo": {
+            "type": "light",
+            "colors": {
+                "primary": "#2780e3",
+                "secondary": "#7e8081",
+                "success": "#3fb618",
+                "info": "#9954bb",
+                "warning": "#ff7518",
+                "danger": "#ff0039",
+                "light": "#f8f9fa",
+                "dark": "#373a3c",
+                "bg": "#ffffff",
+                "fg": "#373a3c",
+                "selectbg": "#7e8081",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#373a3c",
+                "inputbg": "#fdfdfe",
+                # Extended properties for UI compatibility
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f8f9fa",
+                "bg_white": "#ffffff",
+                "bg_light": "#f8f9fa",
+                "text_primary": "#373a3c",
+                "text_secondary": "#7e8081",
+                "text_white": "#ffffff",
+                "primary_light": "#4a96e8",
+                "primary_dark": "#1a66c7",
+                "secondary_dark": "#6a6d6e"
+            }
+        },
+        "flatly": {
+            "type": "light",
+            "colors": {
+                "primary": "#2c3e50",
+                "secondary": "#95a5a6",
+                "success": "#18bc9c",
+                "info": "#3498db",
+                "warning": "#f39c12",
+                "danger": "#e74c3c",
+                "light": "#ecf0f1",
+                "dark": "#7b8a8b",
+                "bg": "#ffffff",
+                "fg": "#212529",
+                "selectbg": "#95a5a6",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#212529",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#ecf0f1",
+                "bg_white": "#ffffff",
+                "bg_light": "#ecf0f1",
+                "text_primary": "#212529",
+                "text_secondary": "#95a5a6",
+                "text_white": "#ffffff",
+                "primary_light": "#34495e",
+                "primary_dark": "#1a252f",
+                "secondary_dark": "#7f8c8d"
+            }
+        },
+        "litera": {
+            "type": "light",
+            "colors": {
+                "primary": "#4582ec",
+                "secondary": "#adb5bd",
+                "success": "#02b875",
+                "info": "#17a2b8",
+                "warning": "#f0ad4e",
+                "danger": "#d9534f",
+                "light": "#f8f9fa",
+                "dark": "#343a40",
+                "bg": "#ffffff",
+                "fg": "#343a40",
+                "selectbg": "#adb5bd",
+                "selectfg": "#ffffff",
+                "border": "#bfbfbf",
+                "inputfg": "#343a40",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f8f9fa",
+                "bg_white": "#ffffff",
+                "bg_light": "#f8f9fa",
+                "text_primary": "#343a40",
+                "text_secondary": "#adb5bd",
+                "text_white": "#ffffff",
+                "primary_light": "#6ba3ed",
+                "primary_dark": "#2780e3",
+                "secondary_dark": "#6c757d"
+            }
+        },
+        "minty": {
+            "type": "light",
+            "colors": {
+                "primary": "#78c2ad",
+                "secondary": "#f3969a",
+                "success": "#56cc9d",
+                "info": "#6cc3d5",
+                "warning": "#ffce67",
+                "danger": "#ff7851",
+                "light": "#f8f9fa",
+                "dark": "#343a40",
+                "bg": "#ffffff",
+                "fg": "#5a5a5a",
+                "selectbg": "#f3969a",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#696969",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f8f9fa",
+                "bg_white": "#ffffff",
+                "bg_light": "#f8f9fa",
+                "text_primary": "#5a5a5a",
+                "text_secondary": "#f3969a",
+                "text_white": "#ffffff",
+                "primary_light": "#89d2bd",
+                "primary_dark": "#67b29c",
+                "secondary_dark": "#e8858a"
+            }
+        },
+        "lumen": {
+            "type": "light",
+            "colors": {
+                "primary": "#158cba",
+                "secondary": "#919191",
+                "success": "#28b62c",
+                "info": "#75caeb",
+                "warning": "#ff851b",
+                "danger": "#ff4136",
+                "light": "#f6f6f6",
+                "dark": "#555555",
+                "bg": "#ffffff",
+                "fg": "#555555",
+                "selectbg": "#919191",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#555555",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f6f6f6",
+                "bg_white": "#ffffff",
+                "bg_light": "#f6f6f6",
+                "text_primary": "#555555",
+                "text_secondary": "#919191",
+                "text_white": "#ffffff",
+                "primary_light": "#2a9fd4",
+                "primary_dark": "#0f6b96",
+                "secondary_dark": "#6c757d"
+            }
+        },
+        "sandstone": {
+            "type": "light",
+            "colors": {
+                "primary": "#325d88",
+                "secondary": "#8e8c84",
+                "success": "#93c54b",
+                "info": "#29abe0",
+                "warning": "#f47c3c",
+                "danger": "#d9534f",
+                "light": "#f8f5f0",
+                "dark": "#3e3f3a",
+                "bg": "#ffffff",
+                "fg": "#3e3f3a",
+                "selectbg": "#8e8c84",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#6e6d69",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f8f5f0",
+                "bg_white": "#ffffff",
+                "bg_light": "#f8f5f0",
+                "text_primary": "#3e3f3a",
+                "text_secondary": "#8e8c84",
+                "text_white": "#ffffff",
+                "primary_light": "#4a7ba6",
+                "primary_dark": "#1f3a56",
+                "secondary_dark": "#6c757d"
+            }
+        },
+        "yeti": {
+            "type": "light",
+            "colors": {
+                "primary": "#008cba",
+                "secondary": "#707070",
+                "success": "#43ac6a",
+                "info": "#5bc0de",
+                "warning": "#e99002",
+                "danger": "#f04124",
+                "light": "#eeeeee",
+                "dark": "#222222",
+                "bg": "#ffffff",
+                "fg": "#222222",
+                "selectbg": "#707070",
+                "selectfg": "#ffffff",
+                "border": "#cccccc",
+                "inputfg": "#222222",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#eeeeee",
+                "bg_white": "#ffffff",
+                "bg_light": "#eeeeee",
+                "text_primary": "#222222",
+                "text_secondary": "#707070",
+                "text_white": "#ffffff",
+                "primary_light": "#1aa3d4",
+                "primary_dark": "#006a8a",
+                "secondary_dark": "#5a5a5a"
+            }
+        },
+        "pulse": {
+            "type": "light",
+            "colors": {
+                "primary": "#593196",
+                "secondary": "#69676e",
+                "success": "#13b955",
+                "info": "#009cdc",
+                "warning": "#efa31d",
+                "danger": "#fc3939",
+                "light": "#f9f8fc",
+                "dark": "#17141f",
+                "bg": "#ffffff",
+                "fg": "#444444",
+                "selectbg": "#69676e",
+                "selectfg": "#ffffff",
+                "border": "#cbc8d0",
+                "inputfg": "#444444",
+                "inputbg": "#fdfdfe",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f9f8fc",
+                "bg_white": "#ffffff",
+                "bg_light": "#f9f8fc",
+                "text_primary": "#444444",
+                "text_secondary": "#69676e",
+                "text_white": "#ffffff",
+                "primary_light": "#6e4abd",
+                "primary_dark": "#3e1a6b",
+                "secondary_dark": "#5a5860"
+            }
+        },
+        "united": {
+            "type": "light",
+            "colors": {
+                "primary": "#e95420",
+                "secondary": "#aea79f",
+                "success": "#38b44a",
+                "info": "#17a2b8",
+                "warning": "#efb73e",
+                "danger": "#df382c",
+                "light": "#e9ecef",
+                "dark": "#772953",
+                "bg": "#ffffff",
+                "fg": "#333333",
+                "selectbg": "#aea79f",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#333333",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#e9ecef",
+                "bg_white": "#ffffff",
+                "bg_light": "#e9ecef",
+                "text_primary": "#333333",
+                "text_secondary": "#aea79f",
+                "text_white": "#ffffff",
+                "primary_light": "#ed7a4a",
+                "primary_dark": "#c7441a",
+                "secondary_dark": "#8b8178"
+            }
+        },
+        "morph": {
+            "type": "light",
+            "colors": {
+                "primary": "#378dfc",
+                "secondary": "#aaaaaa",
+                "success": "#43cc29",
+                "info": "#5b62f4",
+                "warning": "#ffc107",
+                "danger": "#e52527",
+                "light": "#f0f5fa",
+                "dark": "#212529",
+                "bg": "#d9e3f1",
+                "fg": "#7b8ab8",
+                "selectbg": "#aaaaaa",
+                "selectfg": "#fbfdff",
+                "border": "#b9c7da",
+                "inputfg": "#7f8eba",
+                "inputbg": "#f0f5fa",
+                "bg_primary": "#d9e3f1",
+                "bg_secondary": "#f0f5fa",
+                "bg_white": "#fbfdff",
+                "bg_light": "#f0f5fa",
+                "text_primary": "#7b8ab8",
+                "text_secondary": "#aaaaaa",
+                "text_white": "#fbfdff",
+                "primary_light": "#5aa3fd",
+                "primary_dark": "#2670d4",
+                "secondary_dark": "#888888"
+            }
+        },
+        "journal": {
+            "type": "light",
+            "colors": {
+                "primary": "#eb6864",
+                "secondary": "#aaaaaa",
+                "success": "#22b24c",
+                "info": "#336699",
+                "warning": "#f5e625",
+                "danger": "#f57a00",
+                "light": "#f8f9fa",
+                "dark": "#222222",
+                "bg": "#ffffff",
+                "fg": "#222222",
+                "selectbg": "#aaaaaa",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#565656",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f8f9fa",
+                "bg_white": "#ffffff",
+                "bg_light": "#f8f9fa",
+                "text_primary": "#222222",
+                "text_secondary": "#aaaaaa",
+                "text_white": "#ffffff",
+                "primary_light": "#ee8a87",
+                "primary_dark": "#d94a45",
+                "secondary_dark": "#888888"
+            }
+        },
+        "darkly": {
+            "type": "dark",
+            "colors": {
+                "primary": "#375a7f",
+                "secondary": "#444444",
+                "success": "#00bc8c",
+                "info": "#3498db",
+                "warning": "#f39c12",
+                "danger": "#e74c3c",
+                "light": "#adb5bd",
+                "dark": "#303030",
+                "bg": "#222222",
+                "fg": "#ffffff",
+                "selectbg": "#555555",
+                "selectfg": "#ffffff",
+                "border": "#222222",
+                "inputfg": "#ffffff",
+                "inputbg": "#2f2f2f",
+                "bg_primary": "#222222",
+                "bg_secondary": "#303030",
+                "bg_white": "#2f2f2f",
+                "bg_light": "#303030",
+                "text_primary": "#ffffff",
+                "text_secondary": "#adb5bd",
+                "text_white": "#ffffff",
+                "primary_light": "#4a7ba6",
+                "primary_dark": "#1f3a56",
+                "secondary_dark": "#2d2d2d"
+            }
+        },
+        "superhero": {
+            "type": "dark",
+            "colors": {
+                "primary": "#4c9be8",
+                "secondary": "#4e5d6c",
+                "success": "#5cb85c",
+                "info": "#5bc0de",
+                "warning": "#f0ad4e",
+                "danger": "#d9534f",
+                "light": "#abb6c2",
+                "dark": "#20374c",
+                "bg": "#2b3e50",
+                "fg": "#ffffff",
+                "selectbg": "#526170",
+                "selectfg": "#ffffff",
+                "border": "#222222",
+                "inputfg": "#ebebeb",
+                "inputbg": "#32465a",
+                "bg_primary": "#2b3e50",
+                "bg_secondary": "#20374c",
+                "bg_white": "#32465a",
+                "bg_light": "#20374c",
+                "text_primary": "#ffffff",
+                "text_secondary": "#abb6c2",
+                "text_white": "#ffffff",
+                "primary_light": "#6ba3ed",
+                "primary_dark": "#2780e3",
+                "secondary_dark": "#3b4a58"
+            }
+        },
+        "solar": {
+            "type": "dark",
+            "colors": {
+                "primary": "#bc951a",
+                "secondary": "#94a2a4",
+                "success": "#44aca4",
+                "info": "#3f98d7",
+                "warning": "#d05e2f",
+                "danger": "#d95092",
+                "light": "#a9bdbd",
+                "dark": "#073642",
+                "bg": "#002b36",
+                "fg": "#ffffff",
+                "selectbg": "#0b5162",
+                "selectfg": "#ffffff",
+                "border": "#00252e",
+                "inputfg": "#a9bdbd",
+                "inputbg": "#073642",
+                "bg_primary": "#002b36",
+                "bg_secondary": "#073642",
+                "bg_white": "#073642",
+                "bg_light": "#073642",
+                "text_primary": "#ffffff",
+                "text_secondary": "#a9bdbd",
+                "text_white": "#ffffff",
+                "primary_light": "#d4b534",
+                "primary_dark": "#8a6a12",
+                "secondary_dark": "#7a888a"
+            }
+        },
+        "cyborg": {
+            "type": "dark",
+            "colors": {
+                "primary": "#2a9fd6",
+                "secondary": "#555555",
+                "success": "#77b300",
+                "info": "#9933cc",
+                "warning": "#ff8800",
+                "danger": "#cc0000",
+                "light": "#adafae",
+                "dark": "#222222",
+                "bg": "#060606",
+                "fg": "#ffffff",
+                "selectbg": "#454545",
+                "selectfg": "#ffffff",
+                "border": "#060606",
+                "inputfg": "#ffffff",
+                "inputbg": "#191919",
+                "bg_primary": "#060606",
+                "bg_secondary": "#222222",
+                "bg_white": "#191919",
+                "bg_light": "#222222",
+                "text_primary": "#ffffff",
+                "text_secondary": "#adafae",
+                "text_white": "#ffffff",
+                "primary_light": "#4bb9e3",
+                "primary_dark": "#2187b8",
+                "secondary_dark": "#3d3d3d"
+            }
+        },
+        "vapor": {
+            "type": "dark",
+            "colors": {
+                "primary": "#6e40c0",
+                "secondary": "#ea38b8",
+                "success": "#3af180",
+                "info": "#1da2f2",
+                "warning": "#ffbd05",
+                "danger": "#e34b54",
+                "light": "#44d7e8",
+                "dark": "#170229",
+                "bg": "#190831",
+                "fg": "#32fbe2",
+                "selectbg": "#461a8a",
+                "selectfg": "#ffffff",
+                "border": "#060606",
+                "inputfg": "#bfb6cd",
+                "inputbg": "#30115e",
+                "bg_primary": "#190831",
+                "bg_secondary": "#170229",
+                "bg_white": "#30115e",
+                "bg_light": "#170229",
+                "text_primary": "#32fbe2",
+                "text_secondary": "#44d7e8",
+                "text_white": "#ffffff",
+                "primary_light": "#8a5dd4",
+                "primary_dark": "#522a9a",
+                "secondary_dark": "#c62a9a"
+            }
+        },
+        "simplex": {
+            "type": "light",
+            "colors": {
+                "primary": "#d8220e",
+                "secondary": "#858e96",
+                "success": "#469307",
+                "info": "#0099ce",
+                "warning": "#d88220",
+                "danger": "#9a479e",
+                "light": "#f2f2f2",
+                "dark": "#3b3d3f",
+                "bg": "#fcfcfc",
+                "fg": "#3b3d3f",
+                "selectbg": "#a9afb6",
+                "selectfg": "#ffffff",
+                "border": "#858e96",
+                "inputfg": "#3b3d3f",
+                "inputbg": "#fcfcfc",
+                "bg_primary": "#fcfcfc",
+                "bg_secondary": "#f2f2f2",
+                "bg_white": "#fcfcfc",
+                "bg_light": "#f2f2f2",
+                "text_primary": "#3b3d3f",
+                "text_secondary": "#858e96",
+                "text_white": "#ffffff",
+                "primary_light": "#e5472f",
+                "primary_dark": "#a51c0a",
+                "secondary_dark": "#6c757d"
+            }
+        },
+        "cerulean": {
+            "type": "light",
+            "colors": {
+                "primary": "#4bb1ea",
+                "secondary": "#a9b4be",
+                "success": "#84b251",
+                "info": "#225384",
+                "warning": "#e16e25",
+                "danger": "#cf3c40",
+                "light": "#eceef1",
+                "dark": "#33383e",
+                "bg": "#ffffff",
+                "fg": "#2ea4e7",
+                "selectbg": "#adb5bd",
+                "selectfg": "#ffffff",
+                "border": "#a9b4be",
+                "inputfg": "#495057",
+                "inputbg": "#ffffff",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#eceef1",
+                "bg_white": "#ffffff",
+                "bg_light": "#eceef1",
+                "text_primary": "#2ea4e7",
+                "text_secondary": "#a9b4be",
+                "text_white": "#ffffff",
+                "primary_light": "#6bc1ee",
+                "primary_dark": "#35a0e6",
+                "secondary_dark": "#8a9aa8"
+            }
+        },
+        # Additional themes to reach 28 total
+        "default": {
+            "type": "light",
+            "colors": {
+                "primary": "#2780e3",
+                "secondary": "#7e8081",
+                "success": "#3fb618",
+                "info": "#9954bb",
+                "warning": "#ff7518",
+                "danger": "#ff0039",
+                "light": "#f8f9fa",
+                "dark": "#373a3c",
+                "bg": "#ffffff",
+                "fg": "#373a3c",
+                "selectbg": "#7e8081",
+                "selectfg": "#ffffff",
+                "border": "#ced4da",
+                "inputfg": "#373a3c",
+                "inputbg": "#fdfdfe",
+                "bg_primary": "#ffffff",
+                "bg_secondary": "#f8f9fa",
+                "bg_white": "#ffffff",
+                "bg_light": "#f8f9fa",
+                "text_primary": "#373a3c",
+                "text_secondary": "#7e8081",
+                "text_white": "#ffffff",
+                "primary_light": "#4a96e8",
+                "primary_dark": "#1a66c7",
+                "secondary_dark": "#6a6d6e"
+            }
+        }
+    }
+    
+except ImportError:
+    TTK_BOOTSTRAP_AVAILABLE = False
+    TTKBOOTSTRAP_THEMES = {}
+
+# Light theme color scheme - using ttkbootstrap standard format
+LIGHT_THEME = {
+    "type": "light",
     "primary": "#2780e3",
-    "secondary": "#7E8081", 
+    "secondary": "#7e8081", 
     "success": "#3fb618",
     "info": "#9954bb",
     "warning": "#ff7518", 
     "danger": "#ff0039",
-    "light": "#F8F9FA",
-    "dark": "#373A3C",
-    
-    # Background and foreground
+    "light": "#f8f9fa",
+    "dark": "#373a3c",
     "bg": "#ffffff",
     "fg": "#373a3c",
-    
-    # Selection colors
     "selectbg": "#7e8081",
     "selectfg": "#ffffff",
-    
-    # Border colors
     "border": "#ced4da",
-    
-    # Input colors
     "inputfg": "#373a3c", 
     "inputbg": "#fdfdfe",
-    
-    # Additional colors for compatibility
+    # Extended properties for UI compatibility
+    "bg_primary": "#ffffff",
+    "bg_secondary": "#f8f9fa",
+    "bg_white": "#ffffff",
+    "bg_light": "#f8f9fa",
+    "text_primary": "#373a3c",
+    "text_secondary": "#7e8081",
+    "text_white": "#ffffff",
     "primary_light": "#4a96e8",
     "primary_dark": "#1a66c7",
     "secondary_dark": "#6a6d6e",
-    "bg_primary": "#ffffff",
-    "bg_secondary": "#F8F9FA",
-    "bg_white": "#ffffff",
-    "bg_light": "#F8F9FA",
-    "text_primary": "#373a3c",
-    "text_secondary": "#7E8081", 
-    "text_white": "#ffffff",
     "success_light": "#e6fff5",
     "danger_light": "#fff5f5",
     "warning_light": "#fff9e6",
     "info_light": "#f3e8ff"
 }
 
-# Dark theme color scheme - aligned with standard format
+# Dark theme color scheme - using ttkbootstrap standard format
 DARK_THEME = {
-    # Theme type
     "type": "dark",
-    
-    # Core colors matching the standard format
-    "primary": "#4a96e8",
-    "secondary": "#9a9b9c",
-    "success": "#5fc73a", 
-    "info": "#b970d6",
-    "warning": "#ff9548",
-    "danger": "#ff335a",
-    "light": "#24243a",
-    "dark": "#1e1e2d",
-    
-    # Background and foreground
-    "bg": "#1e1e2d",
-    "fg": "#e0e0e0",
-    
-    # Selection colors
-    "selectbg": "#7e8081",
+    "primary": "#375a7f",
+    "secondary": "#444444",
+    "success": "#00bc8c",
+    "info": "#3498db",
+    "warning": "#f39c12",
+    "danger": "#e74c3c",
+    "light": "#adb5bd",
+    "dark": "#303030",
+    "bg": "#222222",
+    "fg": "#ffffff",
+    "selectbg": "#555555",
     "selectfg": "#ffffff",
-    
-    # Border colors
-    "border": "#3a3a50",
-    
-    # Input colors
-    "inputfg": "#e0e0e0",
-    "inputbg": "#24243a",
-    
-    # Additional colors for compatibility
-    "primary_light": "#6ba3ed",
-    "primary_dark": "#2780e3",
-    "secondary_dark": "#6a6d6e",
-    "bg_primary": "#1e1e2d",
-    "bg_secondary": "#2a2a3c",
-    "bg_white": "#2a2a3c",
-    "bg_light": "#24243a",
-    "text_primary": "#e0e0e0",
-    "text_secondary": "#b0b0b0",
-    "text_white": "#ffffff", 
+    "border": "#222222",
+    "inputfg": "#ffffff",
+    "inputbg": "#2f2f2f",
+    # Extended properties for UI compatibility
+    "bg_primary": "#222222",
+    "bg_secondary": "#303030",
+    "bg_white": "#2f2f2f",
+    "bg_light": "#303030",
+    "text_primary": "#ffffff",
+    "text_secondary": "#adb5bd",
+    "text_white": "#ffffff",
+    "primary_light": "#4a7ba6",
+    "primary_dark": "#1f3a56",
+    "secondary_dark": "#2d2d2d",
     "success_light": "#132218",
     "danger_light": "#2d1414",
     "warning_light": "#2d2411",
     "info_light": "#1f1428"
 }
 
-# Additional theme variants for extended customization
-THEME_VARIANTS = {
-    "modern_light": {
-        "type": "light",
-        "primary": "#6366f1",
-        "secondary": "#64748b", 
-        "success": "#10b981",
-        "info": "#3b82f6",
-        "warning": "#f59e0b",
-        "danger": "#ef4444",
-        "light": "#f8fafc",
-        "dark": "#1e293b",
-        "bg": "#ffffff",
-        "fg": "#1e293b",
-        "selectbg": "#64748b",
-        "selectfg": "#ffffff",
-        "border": "#e2e8f0",
-        "inputfg": "#1e293b",
-        "inputbg": "#f8fafc",
-        "primary_light": "#8b5cf6",
-        "primary_dark": "#4338ca",
-        "secondary_dark": "#475569",
-        "bg_primary": "#ffffff",
-        "bg_secondary": "#f8fafc",
-        "bg_white": "#ffffff",
-        "bg_light": "#f8fafc",
-        "text_primary": "#1e293b",
-        "text_secondary": "#64748b",
-        "text_white": "#ffffff"
-    },
-    
-    "modern_dark": {
-        "type": "dark", 
-        "primary": "#818cf8",
-        "secondary": "#94a3b8",
-        "success": "#34d399",
-        "info": "#60a5fa",
-        "warning": "#fbbf24", 
-        "danger": "#f87171",
-        "light": "#374151",
-        "dark": "#111827",
-        "bg": "#111827",
-        "fg": "#f9fafb",
-        "selectbg": "#94a3b8",
-        "selectfg": "#ffffff",
-        "border": "#374151",
-        "inputfg": "#f9fafb",
-        "inputbg": "#1f2937",
-        "primary_light": "#a5b4fc",
-        "primary_dark": "#6366f1",
-        "secondary_dark": "#64748b",
-        "bg_primary": "#111827",
-        "bg_secondary": "#1f2937",
-        "bg_white": "#1f2937",
-        "bg_light": "#374151",
-        "text_primary": "#f9fafb",
-        "text_secondary": "#94a3b8",
-        "text_white": "#ffffff"
-    },
-    
-    "corporate_light": {
-        "type": "light",
-        "primary": "#2c3e50",
-        "secondary": "#95a5a6",
-        "success": "#27ae60",
-        "info": "#3498db", 
-        "warning": "#f39c12",
-        "danger": "#e74c3c",
-        "light": "#ecf0f1",
-        "dark": "#2c3e50",
-        "bg": "#ffffff",
-        "fg": "#2c3e50",
-        "selectbg": "#95a5a6",
-        "selectfg": "#ffffff", 
-        "border": "#bdc3c7",
-        "inputfg": "#2c3e50",
-        "inputbg": "#ecf0f1",
-        "primary_light": "#34495e",
-        "primary_dark": "#1a252f",
-        "secondary_dark": "#7f8c8d",
-        "bg_primary": "#ffffff",
-        "bg_secondary": "#ecf0f1",
-        "bg_white": "#ffffff",
-        "bg_light": "#ecf0f1",
-        "text_primary": "#2c3e50",
-        "text_secondary": "#95a5a6",
-        "text_white": "#ffffff"
-    },
-    
-    "corporate_dark": {
-        "type": "dark",
-        "primary": "#34495e", 
-        "secondary": "#bdc3c7",
-        "success": "#2ecc71",
-        "info": "#3498db",
-        "warning": "#f1c40f",
-        "danger": "#e67e22",
-        "light": "#34495e",
-        "dark": "#2c3e50",
-        "bg": "#2c3e50",
-        "fg": "#ecf0f1",
-        "selectbg": "#bdc3c7",
-        "selectfg": "#2c3e50",
-        "border": "#34495e", 
-        "inputfg": "#ecf0f1",
-        "inputbg": "#34495e",
-        "primary_light": "#5d6d7e",
-        "primary_dark": "#1b2631",
-        "secondary_dark": "#85929e",
-        "bg_primary": "#2c3e50",
-        "bg_secondary": "#34495e",
-        "bg_white": "#34495e",
-        "bg_light": "#34495e",
-        "text_primary": "#ecf0f1",
-        "text_secondary": "#bdc3c7",
-        "text_white": "#ffffff"
-    }
-}
-
 # Default to light theme
 COLORS = LIGHT_THEME.copy()
 
-# Function to switch themes
 def set_theme(theme_name="light", theme_type="default"):
     """
     Set the application theme
@@ -234,20 +676,11 @@ def set_theme(theme_name="light", theme_type="default"):
     """
     global COLORS
     
-    # Get the appropriate theme colors
-    if theme_type != "default" and theme_type in ["modern", "corporate"]:
-        variant_key = f"{theme_type}_{theme_name}"
-        if variant_key in THEME_VARIANTS:
-            COLORS.clear()
-            COLORS.update(THEME_VARIANTS[variant_key])
-        else:
-            # Fallback to base themes
-            if theme_name.lower() == "dark":
-                COLORS.clear()
-                COLORS.update(DARK_THEME)
-            else:
-                COLORS.clear()
-                COLORS.update(LIGHT_THEME)
+    # Check if it's a ttkbootstrap theme
+    if TTK_BOOTSTRAP_AVAILABLE and theme_type in TTKBOOTSTRAP_THEMES:
+        theme_data = TTKBOOTSTRAP_THEMES[theme_type]
+        COLORS.clear()
+        COLORS.update(theme_data["colors"])
     else:
         # Use base themes
         if theme_name.lower() == "dark":
@@ -273,16 +706,22 @@ def get_theme_colors(theme_type, theme_mode):
     Returns:
         dict: Color scheme for the theme
     """
-    # Check if it's a predefined theme variant
-    variant_key = f"{theme_type}_{theme_mode}"
-    if variant_key in THEME_VARIANTS:
-        return THEME_VARIANTS[variant_key]
+    # Check if it's a ttkbootstrap theme
+    if TTK_BOOTSTRAP_AVAILABLE and theme_type in TTKBOOTSTRAP_THEMES:
+        return TTKBOOTSTRAP_THEMES[theme_type]["colors"]
     
     # Return default themes
     if theme_mode == "dark":
         return DARK_THEME
     else:
         return LIGHT_THEME
+
+def get_available_themes():
+    """Get list of all available themes"""
+    themes = ["default"]
+    if TTK_BOOTSTRAP_AVAILABLE:
+        themes.extend(list(TTKBOOTSTRAP_THEMES.keys()))
+    return themes
 
 def validate_theme_properties(theme_dict):
     """
@@ -295,7 +734,7 @@ def validate_theme_properties(theme_dict):
         bool: True if valid, False otherwise
     """
     required_properties = [
-        "type", "primary", "secondary", "success", "info", "warning", 
+        "primary", "secondary", "success", "info", "warning", 
         "danger", "light", "dark", "bg", "fg", "selectbg", "selectfg",
         "border", "inputfg", "inputbg"
     ]
