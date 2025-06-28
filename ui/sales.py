@@ -2305,6 +2305,10 @@ class SalesFrame(tk.Frame):
             village_entry.bind("<Return>", lambda event: gstin_entry.focus_set())
             gstin_entry.bind("<Return>", lambda event: add_customer())
             
+            # Bind ESC key to close dialog
+            dialog.bind("<Escape>", lambda event: dialog.destroy())
+            dialog.focus_set()
+            
             # Wait for dialog to close
             dialog.wait_window()
             
@@ -3243,6 +3247,9 @@ class SalesFrame(tk.Frame):
         # Bind Enter key
         dialog.bind("<Return>", lambda event: complete_sale())
         
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
+        
         # Wait for dialog to close
         dialog.wait_window()
     
@@ -3387,6 +3394,9 @@ class SalesFrame(tk.Frame):
         
         # Bind Enter key
         dialog.bind("<Return>", lambda event: complete_sale())
+        
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: dialog.destroy())
         
         # Wait for dialog to close
         dialog.wait_window()
