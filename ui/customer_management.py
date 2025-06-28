@@ -827,7 +827,8 @@ class CustomerManagementFrame(tk.Frame):
         query = """
             SELECT credit_limit FROM customers WHERE id = ?
         """
-        customer_credit_limit = self.controller.db.fetchone(query, (customer_id,))[0] or 0
+        customer_credit_limit = self.controller.db.fetchone(query,```python
+ (customer_id,))[0] or 0
 
         # Get total outstanding credit
         query = """
@@ -2091,3 +2092,52 @@ class CustomerManagementFrame(tk.Frame):
             self.selected_customer_item = 0
             self.customer_tree.selection_set(self.customer_tree.get_children()[0])
             self.customer_tree.focus_set()
+
+        # Buttons frame
+        buttons_frame = tk.Frame(self, bg=COLORS["bg_primary"])
+        buttons_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        # Add customer button
+        add_btn = tk.Button(buttons_frame,
+                          text="Add Customer",
+                          font=FONTS["regular_bold"],
+                          bg=COLORS["success"],
+                          fg=COLORS.get("text_white", "#ffffff"),
+                          activebackground=COLORS.get("success", "#45a049"),
+                          activeforeground=COLORS.get("text_white", "#ffffff"),
+                          padx=15,
+                          pady=5,
+                          cursor="hand2",
+                          relief="flat",
+                          command=self.add_customer)
+        add_btn.pack(side=tk.LEFT, padx=5)
+
+        # Edit customer button
+        edit_btn = tk.Button(buttons_frame,
+                           text="Edit Customer",
+                           font=FONTS["regular_bold"],
+                           bg=COLORS["primary"],
+                           fg=COLORS.get("text_white", "#ffffff"),
+                           activebackground=COLORS.get("primary_dark", COLORS["primary"]),
+                           activeforeground=COLORS.get("text_white", "#ffffff"),
+                           padx=15,
+                           pady=5,
+                           cursor="hand2",
+                           relief="flat",
+                           command=self.edit_customer)
+        edit_btn.pack(side=tk.LEFT, padx=5)
+
+        # Delete customer button
+        delete_btn = tk.Button(buttons_frame,
+                             text="Delete Customer",
+                             font=FONTS["regular_bold"],
+                             bg=COLORS["danger"],
+                             fg=COLORS.get("text_white", "#ffffff"),
+                             activebackground=COLORS.get("danger", "#d32f2f"),
+                             activeforeground=COLORS.get("text_white", "#ffffff"),
+                             padx=15,
+                             pady=5,
+                             cursor="hand2",
+                             relief="flat",
+                             command=self.delete_customer)
+        delete_btn.pack(side=tk.LEFT, padx=5)

@@ -97,33 +97,49 @@ class ThemeManager:
         if widget_type == "primary":
             widget.configure(
                 bg=COLORS["primary"],
-                fg=COLORS["text_white"],
+                fg=COLORS.get("text_white", "#ffffff"),
                 activebackground=COLORS.get("primary_dark", COLORS["primary"]),
-                activeforeground=COLORS["text_white"],
+                activeforeground=COLORS.get("text_white", "#ffffff"),
                 **base_config
             )
         elif widget_type == "secondary":
             widget.configure(
                 bg=COLORS["secondary"],
-                fg=COLORS["text_white"],
+                fg=COLORS.get("text_white", "#ffffff"),
                 activebackground=COLORS.get("secondary_dark", COLORS["secondary"]),
-                activeforeground=COLORS["text_white"],
+                activeforeground=COLORS.get("text_white", "#ffffff"),
                 **base_config
             )
         elif widget_type == "danger":
             widget.configure(
                 bg=COLORS["danger"],
-                fg=COLORS["text_white"],
+                fg=COLORS.get("text_white", "#ffffff"),
                 activebackground=COLORS.get("danger", "#c0392b"),
-                activeforeground=COLORS["text_white"],
+                activeforeground=COLORS.get("text_white", "#ffffff"),
                 **base_config
             )
         elif widget_type == "success":
             widget.configure(
                 bg=COLORS["success"],
-                fg=COLORS["text_white"],
+                fg=COLORS.get("text_white", "#ffffff"),
                 activebackground=COLORS.get("success", "#27ae60"),
-                activeforeground=COLORS["text_white"],
+                activeforeground=COLORS.get("text_white", "#ffffff"),
+                **base_config
+            )
+        elif widget_type == "warning":
+            widget.configure(
+                bg=COLORS["warning"],
+                fg=COLORS.get("text_white", "#ffffff"),
+                activebackground=COLORS.get("warning", "#f57c00"),
+                activeforeground=COLORS.get("text_white", "#ffffff"),
+                **base_config
+            )
+        elif widget_type == "info":
+            widget.configure(
+                bg=COLORS["info"],
+                fg=COLORS.get("text_white", "#ffffff"),
+                activebackground=COLORS.get("info", "#1976D2"),
+                activeforeground=COLORS.get("text_white", "#ffffff"),
                 **base_config
             )
         elif widget_type == "nav":
@@ -131,7 +147,7 @@ class ThemeManager:
                 bg=COLORS["bg_secondary"],
                 fg=COLORS["text_primary"],
                 activebackground=COLORS.get("primary_light", COLORS["primary"]),
-                activeforeground=COLORS["text_white"],
+                activeforeground=COLORS.get("text_white", "#ffffff"),
                 font=FONTS["nav_item"],
                 anchor="w",
                 relief="flat",
@@ -142,7 +158,7 @@ class ThemeManager:
                 bg=COLORS["primary"],
                 fg="#ffeb3b",  # Yellow for selected nav items
                 activebackground=COLORS.get("primary_light", COLORS["primary"]),
-                activeforeground=COLORS["text_white"],
+                activeforeground=COLORS.get("text_white", "#ffffff"),
                 font=(FONTS["nav_item"][0], FONTS["nav_item"][1], "bold"),
                 anchor="w",
                 relief="flat",
@@ -150,10 +166,10 @@ class ThemeManager:
             )
         else:
             widget.configure(
-                bg=COLORS["bg_secondary"],
+                bg=COLORS.get("bg_secondary", COLORS["bg_primary"]),
                 fg=COLORS["text_primary"],
                 activebackground=COLORS.get("primary_light", COLORS["primary"]),
-                activeforeground=COLORS["text_white"],
+                activeforeground=COLORS.get("text_white", "#ffffff"),
                 **base_config
             )
     
@@ -337,3 +353,57 @@ class ThemeManager:
         dialog.geometry(f"+{x}+{y}")
         
         return dialog
+    
+    @staticmethod
+    def refresh_all_themes(root_widget):
+        """
+        Refresh all themes across the entire application
+        
+        Args:
+            root_widget: The root application widget
+        """
+        try:
+            # Recursively update all widgets
+            ThemeManager._refresh_widget_recursive(root_widget)
+        except Exception as e:
+            print(f"Error refreshing themes: {e}")
+    
+    @staticmethod
+    def _refresh_widget_recursive(widget):
+        """Recursively refresh theme for all widgets"""
+        try:
+            widget_class = widget.winfo_class()
+            
+            # Apply appropriate theming based on widget type
+            if widget_class == "Frame":
+                widget.configure(bg=COLORS.get("bg_primary", "#ffffff"))
+            elif widget_class == "Label":
+                widget.configure(
+                    bg=COLORS.get("bg_primary", "#ffffff"),
+                    fg=COLORS.get("text_primary", "#000000")
+                )
+            elif widget_class == "Button":
+                # Try to maintain existing button styling while updating colors
+                current_bg = widget.cget("bg")
+                if current_bg in ["#4CAF50", "#45a049"]:  # Success colors
+                    ThemeManager._theme_button(widget, "success", "normal")
+                elif current_bg in ["#f44336", "#d32f2f"]:  # Danger colors
+                    ThemeManager._theme_button(widget, "danger", "normal")
+                elif current_bg in ["#2196F3", "#1976D2"]:  # Info colors
+                    ThemeManager._theme_button(widget, "info", "normal")
+                elif current_bg in ["#ff9800", "#f57c00"]:  # Warning colors
+                    ThemeManager._theme_button(widget, "warning", "normal")
+                else:
+                    ThemeManager._theme_button(widget, "primary", "normal")
+            elif widget_class == "Entry":
+                ThemeManager._theme_entry(widget, "default", "normal")
+            elif widget_class == "Text":
+                ThemeManager._theme_text(widget, "default", "normal")
+            
+            # Process children
+            for child in widget.winfo_children():
+                ThemeManager._refresh_widget_recursive(child)
+                
+        except Exception as e:
+            # Silently continue if widget is destroyed or inaccessible
+            pass

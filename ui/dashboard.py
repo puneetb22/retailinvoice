@@ -60,6 +60,40 @@ class Dashboard(tk.Frame):
                              fg=COLORS["text_white"])
         shop_label.pack(side=tk.LEFT, padx=15, pady=10)
 
+        # Quick action buttons
+        quick_actions_frame = tk.Frame(self.header_frame, bg=COLORS["primary"])
+        quick_actions_frame.pack(side=tk.RIGHT, padx=20)
+
+        # New Sale button
+        new_sale_btn = tk.Button(quick_actions_frame,
+                               text="New Sale",
+                               font=FONTS["regular_bold"],
+                               bg=COLORS["success"],
+                               fg=COLORS.get("text_white", "#ffffff"),
+                               activebackground=COLORS.get("success", "#45a049"),
+                               activeforeground=COLORS.get("text_white", "#ffffff"),
+                               padx=15,
+                               pady=5,
+                               cursor="hand2",
+                               relief="flat",
+                               command=lambda: self.controller.show_frame("SalesFrame"))
+        new_sale_btn.pack(side=tk.LEFT, padx=5)
+
+        # Quick Report button
+        quick_report_btn = tk.Button(quick_actions_frame,
+                                   text="Quick Report",
+                                   font=FONTS["regular_bold"],
+                                   bg=COLORS["info"],
+                                   fg=COLORS.get("text_white", "#ffffff"),
+                                   activebackground=COLORS.get("info", "#1976D2"),
+                                   activeforeground=COLORS.get("text_white", "#ffffff"),
+                                   padx=15,
+                                   pady=5,
+                                   cursor="hand2",
+                                   relief="flat",
+                                   command=lambda: self.controller.show_frame("ReportsFrame"))
+        quick_report_btn.pack(side=tk.LEFT, padx=5)
+
         # Removed keyboard shortcuts button (moved to settings)
 
         # Right side container for bell icon and datetime
