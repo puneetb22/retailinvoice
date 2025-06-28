@@ -62,13 +62,33 @@ class Dashboard(tk.Frame):
 
         # Removed keyboard shortcuts button (moved to settings)
 
+        # Right side container for bell icon and datetime
+        right_container = tk.Frame(self.header_frame, bg=COLORS["primary"])
+        right_container.pack(side=tk.RIGHT, padx=15, pady=10)
+
+        # Bell icon for alerts
+        self.bell_icon = tk.Button(right_container,
+                                  text="🔔",
+                                  font=("Arial", 16),
+                                  bg=COLORS["primary"],
+                                  fg=COLORS["text_white"],
+                                  bd=0,
+                                  padx=8,
+                                  pady=5,
+                                  cursor="hand2",
+                                  relief=tk.FLAT,
+                                  activebackground=COLORS["primary_light"],
+                                  activeforeground=COLORS["text_white"],
+                                  command=self.show_inventory_alerts)
+        self.bell_icon.pack(side=tk.LEFT, padx=(0, 10))
+
         # Current date and time
-        self.datetime_label = tk.Label(self.header_frame,
+        self.datetime_label = tk.Label(right_container,
                                       text=self.get_current_datetime(),
                                       font=FONTS["regular_light"],
                                       bg=COLORS["primary"],
                                       fg=COLORS["text_white"])
-        self.datetime_label.pack(side=tk.RIGHT, padx=15, pady=15)
+        self.datetime_label.pack(side=tk.LEFT)
         self.update_datetime()
 
         # Side navigation
@@ -267,8 +287,8 @@ class Dashboard(tk.Frame):
 
     def on_show(self):
         """Called when dashboard is shown"""
-        # Check for low stock and expired items
-        self.check_alerts()
+        # Automatic alerts disabled - now using manual bell icon
+        pass
 
     def handle_key_event(self, event):
         """Handle keyboard events for navigation"""
@@ -314,42 +334,155 @@ class Dashboard(tk.Frame):
             if current_module in self.frames and hasattr(self.frames[current_module], 'handle_key_event'):
                 self.frames[current_module].handle_key_event(event)
 
-    def check_alerts(self):
-        """Check for system alerts like low stock, expired items"""
-        # Query for alerts
-        # This is a simplistic implementation - would be expanded in real app
-
+    def show_inventory_alerts(self):
+        """Show inventory alerts when bell icon is clicked"""
+        # Query for alerts using both inventory and batches tables
         low_stock_threshold = int(self.controller.config.get('low_stock_threshold', 10))
 
-        # Check for low stock items
-        query = """
-            SELECT COUNT(*) FROM inventory
-            JOIN products ON inventory.product_id = products.id
-            WHERE inventory.quantity <= ?
+        # Check for low stock items from batches table
+        low_stock_query = """
+            SELECT p.name, SUM(b.quantity) as total_qty
+            FROM products p
+            LEFT JOIN batches b ON p.id = b.product_id
+            GROUP BY p.id, p.name
+            HAVING total_qty <= ?
+            ORDER BY total_qty
         """
-        low_stock_count = self.controller.db.fetchone(query, (low_stock_threshold,))[0]
+        low_stock_items = self.controller.db.fetchall(low_stock_query, (low_stock_threshold,))
 
         # Check for expiring items (items expiring in 30 days)
         today = datetime.date.today()
         thirty_days_later = today + datetime.timedelta(days=30)
 
-        query = """
-            SELECT COUNT(*) FROM inventory
-            WHERE expiry_date IS NOT NULL 
-            AND expiry_date <= ? 
-            AND expiry_date >= ?
+        expiring_query = """
+            SELECT p.name, b.batch_number, b.expiry_date, b.quantity
+            FROM batches b
+            JOIN products p ON b.product_id = p.id
+            WHERE b.expiry_date IS NOT NULL 
+            AND b.expiry_date <= ? 
+            AND b.expiry_date >= ?
+            AND b.quantity > 0
+            ORDER BY b.expiry_date
         """
-        expiring_count = self.controller.db.fetchone(query, (thirty_days_later.isoformat(), today.isoformat()))[0]
+        expiring_items = self.controller.db.fetchall(expiring_query, (thirty_days_later.isoformat(), today.isoformat()))
 
-        # Show alert if needed
-        if low_stock_count > 0 or expiring_count > 0:
-            alert_msg = "System Alerts:\n"
-            if low_stock_count > 0:
-                alert_msg += f"• {low_stock_count} products with low stock\n"
-            if expiring_count > 0:
-                alert_msg += f"• {expiring_count} products expiring soon\n"
+        # Check for expired items
+        expired_query = """
+            SELECT p.name, b.batch_number, b.expiry_date, b.quantity
+            FROM batches b
+            JOIN products p ON b.product_id = p.id
+            WHERE b.expiry_date IS NOT NULL 
+            AND b.expiry_date < ?
+            AND b.quantity > 0
+            ORDER BY b.expiry_date
+        """
+        expired_items = self.controller.db.fetchall(expired_query, (today.isoformat(),))
 
-            messagebox.showwarning("Inventory Alerts", alert_msg)
+        # Create alerts dialog
+        self.create_alerts_dialog(low_stock_items, expiring_items, expired_items)
+
+    def create_alerts_dialog(self, low_stock_items, expiring_items, expired_items):
+        """Create a detailed alerts dialog window"""
+        alerts_window = tk.Toplevel(self)
+        alerts_window.title("Inventory Alerts")
+        alerts_window.geometry("700x500")
+        alerts_window.configure(bg=COLORS["bg_primary"])
+        alerts_window.grab_set()
+
+        # Center the window
+        alerts_window.update_idletasks()
+        width = alerts_window.winfo_width()
+        height = alerts_window.winfo_height()
+        x = (alerts_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (alerts_window.winfo_screenheight() // 2) - (height // 2)
+        alerts_window.geometry(f"+{x}+{y}")
+
+        # Title
+        title = tk.Label(alerts_window,
+                        text="🔔 Inventory Alerts",
+                        font=FONTS["heading"],
+                        bg=COLORS["bg_primary"],
+                        fg=COLORS["text_primary"])
+        title.pack(pady=15)
+
+        # Create notebook for different alert types
+        notebook = ttk.Notebook(alerts_window)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        # Low Stock Tab
+        low_stock_frame = tk.Frame(notebook, bg=COLORS["bg_primary"])
+        notebook.add(low_stock_frame, text=f"Low Stock ({len(low_stock_items)})")
+
+        if low_stock_items:
+            low_stock_text = tk.Text(low_stock_frame, wrap=tk.WORD, height=10, font=FONTS["regular"])
+            low_stock_scrollbar = ttk.Scrollbar(low_stock_frame, command=low_stock_text.yview)
+            low_stock_text.config(yscrollcommand=low_stock_scrollbar.set)
+            
+            for item in low_stock_items:
+                qty = item[1] if item[1] is not None else 0
+                low_stock_text.insert(tk.END, f"• {item[0]} - Quantity: {qty}\n")
+            
+            low_stock_text.config(state=tk.DISABLED)
+            low_stock_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+            low_stock_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        else:
+            no_low_stock = tk.Label(low_stock_frame, text="No low stock items", 
+                                   font=FONTS["regular"], bg=COLORS["bg_primary"], fg=COLORS["text_primary"])
+            no_low_stock.pack(pady=50)
+
+        # Expiring Soon Tab
+        expiring_frame = tk.Frame(notebook, bg=COLORS["bg_primary"])
+        notebook.add(expiring_frame, text=f"Expiring Soon ({len(expiring_items)})")
+
+        if expiring_items:
+            expiring_text = tk.Text(expiring_frame, wrap=tk.WORD, height=10, font=FONTS["regular"])
+            expiring_scrollbar = ttk.Scrollbar(expiring_frame, command=expiring_text.yview)
+            expiring_text.config(yscrollcommand=expiring_scrollbar.set)
+            
+            for item in expiring_items:
+                batch_info = f" (Batch: {item[1]})" if item[1] else ""
+                expiring_text.insert(tk.END, f"• {item[0]}{batch_info} - Expires: {item[2]} - Qty: {item[3]}\n")
+            
+            expiring_text.config(state=tk.DISABLED)
+            expiring_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+            expiring_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        else:
+            no_expiring = tk.Label(expiring_frame, text="No items expiring soon", 
+                                  font=FONTS["regular"], bg=COLORS["bg_primary"], fg=COLORS["text_primary"])
+            no_expiring.pack(pady=50)
+
+        # Expired Tab
+        expired_frame = tk.Frame(notebook, bg=COLORS["bg_primary"])
+        notebook.add(expired_frame, text=f"Expired ({len(expired_items)})")
+
+        if expired_items:
+            expired_text = tk.Text(expired_frame, wrap=tk.WORD, height=10, font=FONTS["regular"])
+            expired_scrollbar = ttk.Scrollbar(expired_frame, command=expired_text.yview)
+            expired_text.config(yscrollcommand=expired_scrollbar.set)
+            
+            for item in expired_items:
+                batch_info = f" (Batch: {item[1]})" if item[1] else ""
+                expired_text.insert(tk.END, f"• {item[0]}{batch_info} - Expired: {item[2]} - Qty: {item[3]}\n")
+            
+            expired_text.config(state=tk.DISABLED)
+            expired_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+            expired_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        else:
+            no_expired = tk.Label(expired_frame, text="No expired items", 
+                                 font=FONTS["regular"], bg=COLORS["bg_primary"], fg=COLORS["text_primary"])
+            no_expired.pack(pady=50)
+
+        # Close button
+        close_btn = tk.Button(alerts_window,
+                             text="Close",
+                             font=FONTS["regular"],
+                             bg=COLORS["secondary"],
+                             fg=COLORS["text_white"],
+                             padx=20,
+                             pady=8,
+                             cursor="hand2",
+                             command=alerts_window.destroy)
+        close_btn.pack(pady=20)
     
     def show_frame(self, module_name):
         """Function to load frame based on the module name."""
