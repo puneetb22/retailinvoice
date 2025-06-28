@@ -783,51 +783,18 @@ class SettingsFrame(tk.Frame):
                 "danger": theme_config.get("danger", "#dc3545")
             }
         
-        # Define color schemes for custom theme types
-        theme_colors = {
-            "default": {
-                "light": {"primary": "#2780e3", "secondary": "#7E8081", "success": "#3fb618", "warning": "#ff7518", "danger": "#ff0039"},
-                "dark": {"primary": "#4a96e8", "secondary": "#9a9b9c", "success": "#5fc73a", "warning": "#ff9548", "danger": "#ff335a"}
-            },
-            "modern": {
-                "light": {"primary": "#6366f1", "secondary": "#64748b", "success": "#10b981", "warning": "#f59e0b", "danger": "#ef4444"},
-                "dark": {"primary": "#818cf8", "secondary": "#94a3b8", "success": "#34d399", "warning": "#fbbf24", "danger": "#f87171"}
-            },
-            "classic": {
-                "light": {"primary": "#0066cc", "secondary": "#666666", "success": "#009900", "warning": "#ff6600", "danger": "#cc0000"},
-                "dark": {"primary": "#3399ff", "secondary": "#999999", "success": "#33cc33", "warning": "#ff9933", "danger": "#ff3333"}
-            },
-            "minimal": {
-                "light": {"primary": "#000000", "secondary": "#888888", "success": "#228b22", "warning": "#ffa500", "danger": "#dc143c"},
-                "dark": {"primary": "#ffffff", "secondary": "#bbbbbb", "success": "#32cd32", "warning": "#ffd700", "danger": "#ff6347"}
-            },
-            "vibrant": {
-                "light": {"primary": "#e91e63", "secondary": "#9c27b0", "success": "#4caf50", "warning": "#ff9800", "danger": "#f44336"},
-                "dark": {"primary": "#f48fb1", "secondary": "#ce93d8", "success": "#81c784", "warning": "#ffb74d", "danger": "#e57373"}
-            },
-            "bootstrap": {
-                "light": {"primary": "#007bff", "secondary": "#6c757d", "success": "#28a745", "warning": "#ffc107", "danger": "#dc3545"},
-                "dark": {"primary": "#0d6efd", "secondary": "#adb5bd", "success": "#198754", "warning": "#fd7e14", "danger": "#dc3545"}
-            },
-            "material": {
-                "light": {"primary": "#1976d2", "secondary": "#757575", "success": "#388e3c", "warning": "#f57c00", "danger": "#d32f2f"},
-                "dark": {"primary": "#2196f3", "secondary": "#bdbdbd", "success": "#4caf50", "warning": "#ff9800", "danger": "#f44336"}
-            },
-            "corporate": {
-                "light": {"primary": "#2c3e50", "secondary": "#95a5a6", "success": "#27ae60", "warning": "#f39c12", "danger": "#e74c3c"},
-                "dark": {"primary": "#34495e", "secondary": "#bdc3c7", "success": "#2ecc71", "warning": "#f1c40f", "danger": "#e67e22"}
-            },
-            "nature": {
-                "light": {"primary": "#2e7d32", "secondary": "#8d6e63", "success": "#388e3c", "warning": "#ff8f00", "danger": "#d32f2f"},
-                "dark": {"primary": "#4caf50", "secondary": "#a1887f", "success": "#66bb6a", "warning": "#ffb300", "danger": "#ef5350"}
-            },
-            "sunset": {
-                "light": {"primary": "#ff5722", "secondary": "#795548", "success": "#4caf50", "warning": "#ff9800", "danger": "#f44336"},
-                "dark": {"primary": "#ff7043", "secondary": "#8d6e63", "success": "#66bb6a", "warning": "#ffb74d", "danger": "#ef5350"}
-            }
-        }
+        # Use the improved theme system from styles.py
+        from assets.styles import get_theme_colors as get_styles_theme_colors
+        theme_colors = get_styles_theme_colors(theme_type, theme_mode)
         
-        return theme_colors.get(theme_type, theme_colors["default"]).get(theme_mode, theme_colors["default"]["light"])
+        # Return only the preview colors (first 5 for display)
+        return {
+            "primary": theme_colors.get("primary", "#2780e3"),
+            "secondary": theme_colors.get("secondary", "#7E8081"),
+            "success": theme_colors.get("success", "#3fb618"),
+            "warning": theme_colors.get("warning", "#ff7518"),
+            "danger": theme_colors.get("danger", "#ff0039")
+        }
     
     def create_tooltip(self, widget, text):
         """Create a simple tooltip for a widget"""
@@ -869,7 +836,7 @@ class SettingsFrame(tk.Frame):
     
     def update_color_scheme(self, new_colors, theme_mode):
         """Update the color scheme with new colors"""
-        from assets.styles import LIGHT_THEME, DARK_THEME, COLORS
+        from assets.styles import LIGHT_THEME, DARK_THEME, COLORS, update_styles
         
         # Determine which theme to update
         target_theme = LIGHT_THEME if theme_mode == "light" else DARK_THEME
@@ -883,6 +850,8 @@ class SettingsFrame(tk.Frame):
         current_mode = self.controller.config.get("app_theme", "light")
         if current_mode == theme_mode:
             COLORS.update(target_theme)
+            # Update all widget styles with new colors
+            update_styles()
         
     def show_keyboard_shortcuts(self):
         """Display keyboard shortcuts help"""
