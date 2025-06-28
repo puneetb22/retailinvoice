@@ -773,7 +773,6 @@ class ReportsFrame(tk.Frame):
             # No data for selected range
             no_data_label = tk.Label(self.product_sales_frame,
                                    text="No sales data available for the selected date range.",
-```python
                                    font=FONTS["regular_bold"],
                                    bg=COLORS["bg_white"],
                                    fg=COLORS["text_secondary"])
