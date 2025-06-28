@@ -1,0 +1,32 @@
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 175, in <lambda>
+    command=lambda i=item["name"]: self.load_module(i))
+                                   ~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 219, in load_module
+    self.update_nav_selection(module_name)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 268, in update_nav_selection
+    bg=COLORS["bg_secondary"],
+       ~~~~~~^^^^^^^^^^^^^^^^
+KeyError: 'bg_secondary'
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "c:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 175, in <lambda>
+    command=lambda i=item["name"]: self.load_module(i))
+                                   ~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 219, in load_module
+    self.update_nav_selection(module_name)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\ASUS\Documents\Dev_projects\POS\retailinvoice_2.0\retailinvoice\ui\dashboard.py", line 268, in update_nav_selection
+    bg=COLORS["bg_secondary"],
+       ~~~~~~^^^^^^^^^^^^^^^^
+KeyError: 'bg_secondary'
+Error updating application theme: '_tkinter.tkapp' object has no attribute 'current_frame'
+Error updating application theme: '_tkinter.tkapp' object has no attribute 'current_frame'
+Error updating application theme: '_tkinter.tkapp' object has no attribute 'current_frame'
+Error updating application theme: '_tkinter.tkapp' object has no attribute 'current_frame'
