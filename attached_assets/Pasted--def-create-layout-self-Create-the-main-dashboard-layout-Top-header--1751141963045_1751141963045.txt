@@ -1,0 +1,46 @@
+  def create_layout(self):
+        """Create the main dashboard layout"""
+        # Top header
+        self.header_frame = tk.Frame(self, bg=COLORS["primary"], height=60)
+        self.header_frame.pack(side=tk.TOP, fill=tk.X)
+        self.header_frame.pack_propagate(False)
+
+        # Shop name
+        shop_name = self.controller.config.get('shop_name', 'Agritech Products Shop')
+        shop_label = tk.Label(self.header_frame, 
+                             text=shop_name,
+                             font=FONTS["heading_light"],
+                             bg=COLORS["primary"],
+                             fg=COLORS["text_white"])
+        shop_label.pack(side=tk.LEFT, padx=15, pady=10)
+
+        # Removed keyboard shortcuts button (moved to settings)
+
+        # Right side container for bell icon and datetime
+        right_container = tk.Frame(self.header_frame, bg=COLORS["primary"])
+        right_container.pack(side=tk.RIGHT, padx=15, pady=10)
+
+        # Bell icon for alerts
+        self.bell_icon = tk.Button(right_container,
+                                  text="🔔",
+                                  font=("Arial", 16),
+                                  bg=COLORS["primary"],
+                                  fg=COLORS["text_white"],
+                                  bd=0,
+                                  padx=8,
+                                  pady=5,
+                                  cursor="hand2",
+                                  relief=tk.FLAT,
+                                  activebackground=COLORS["primary_light"],
+                                  activeforeground=COLORS["text_white"],
+                                  command=self.show_inventory_alerts)
+        self.bell_icon.pack(side=tk.LEFT, padx=(0, 10))
+
+        # Current date and time
+        self.datetime_label = tk.Label(right_container,
+                                      text=self.get_current_datetime(),
+                                      font=FONTS["regular_light"],
+                                      bg=COLORS["primary"],
+                                      fg=COLORS["text_white"])
+        self.datetime_label.pack(side=tk.LEFT)
+        self.update_datetime()
