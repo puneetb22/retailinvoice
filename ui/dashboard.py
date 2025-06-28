@@ -37,9 +37,9 @@ class Dashboard(tk.Frame):
         # Create layout
         self.create_layout()
 
-        # Bind keyboard events
+        # Bind keyboard events only when dashboard has focus
         self.bind("<Key>", self.handle_key_event)
-        self.focus_set()  # Set focus to this frame
+        # Don't automatically set focus to dashboard - let active page components have focus
 
         # Load initial frame
         self.load_module("sales")
@@ -172,6 +172,9 @@ class Dashboard(tk.Frame):
 
             # Bind Enter key to button
             btn.bind("<Return>", lambda event, i=item["name"]: self.load_module(i))
+            
+            # Bind focus events to enable keyboard navigation
+            btn.bind("<FocusIn>", lambda event, idx=len(self.nav_buttons): self.set_nav_focus(idx))
 
             # Store button in the nav_buttons list for keyboard navigation
             # Use a dictionary to store module name with the button
@@ -296,6 +299,26 @@ class Dashboard(tk.Frame):
         if not self.nav_buttons:
             return
 
+        # Get the currently focused widget
+        focused_widget = self.focus_get()
+        
+        # Check if focus is on a navigation button or the dashboard itself
+        nav_has_focus = False
+        if focused_widget:
+            # Check if focused widget is one of our navigation buttons
+            for btn_data in self.nav_buttons:
+                if focused_widget == btn_data["button"]:
+                    nav_has_focus = True
+                    break
+            # Also check if focused widget is the dashboard frame itself
+            if focused_widget == self or focused_widget == self.nav_frame:
+                nav_has_focus = True
+
+        # Only handle navigation keys if the navigation area has focus
+        if not nav_has_focus and event.keysym in ["Tab", "Up", "Down", "Left", "Right", "Return", "space"]:
+            # Don't handle these keys if focus is on page components
+            return
+
         # Get current active module name
         current_module = None
         for i, btn_data in enumerate(self.nav_buttons):
@@ -310,15 +333,19 @@ class Dashboard(tk.Frame):
             self.current_nav_index = (self.current_nav_index + 1) % len(self.nav_buttons)
             module_name = self.nav_buttons[self.current_nav_index]["module_name"]
             self.load_module(module_name)
+            # Set focus to the newly selected navigation button
+            self.nav_buttons[self.current_nav_index]["button"].focus_set()
 
         elif event.keysym == "Up" or event.keysym == "Left":
             # Move to the previous menu item
             self.current_nav_index = (self.current_nav_index - 1) % len(self.nav_buttons)
             module_name = self.nav_buttons[self.current_nav_index]["module_name"]
             self.load_module(module_name)
+            # Set focus to the newly selected navigation button
+            self.nav_buttons[self.current_nav_index]["button"].focus_set()
 
         elif event.keysym == "Return" or event.keysym == "space":
-            # Activate currently selected menu item
+            # Activate currently selected menu item (already handled by button selection)
             if self.current_nav_index < len(self.nav_buttons):
                 module_name = self.nav_buttons[self.current_nav_index]["module_name"]
                 self.load_module(module_name)
@@ -328,11 +355,10 @@ class Dashboard(tk.Frame):
             if messagebox.askyesno("Exit Confirmation", "Are you sure you want to exit?"):
                 self.controller.exit_application()
 
-        # Pass the event to the active module if it has a handle_key_event method
-        if self.current_nav_index < len(self.nav_buttons):
-            current_module = self.nav_buttons[self.current_nav_index]["module_name"]
-            if current_module in self.frames and hasattr(self.frames[current_module], 'handle_key_event'):
-                self.frames[current_module].handle_key_event(event)
+        # For Tab key, allow normal tab navigation within the active module
+        elif event.keysym == "Tab" and not nav_has_focus:
+            # Let the normal tab navigation work within the active page
+            return
 
     def show_inventory_alerts(self):
         """Show inventory alerts when bell icon is clicked"""
@@ -487,6 +513,10 @@ class Dashboard(tk.Frame):
                              cursor="hand2",
                              command=alerts_window.destroy)
         close_btn.pack(pady=20)
+
+    def set_nav_focus(self, nav_index):
+        """Set the current navigation focus index"""
+        self.current_nav_index = nav_index
 
     def show_frame(self, module_name):
         """Function to load frame based on the module name."""

@@ -4593,8 +4593,9 @@ class SalesFrame(tk.Frame):
         
         
         
-        # Tab key to cycle focus
-        if key == "Tab":
+        # Only handle Tab if we're specifically in custom navigation mode
+        # Normal Tab should work for form fields and buttons
+        if key == "Tab" and (event.state & 0x4):  # Ctrl+Tab for custom navigation
             if not self.current_focus:
                 self.current_focus = "products"
             elif self.current_focus == "products":
