@@ -878,9 +878,10 @@ class SettingsFrame(tk.Frame):
                 self.controller.root.configure(bg=COLORS["bg"])
             
             # Force refresh of current frame
-            current_frame = self.controller.current_frame
-            if current_frame and hasattr(current_frame, 'refresh_colors'):
-                current_frame.refresh_colors()
+            if hasattr(self.controller, 'current_frame'):
+                current_frame = self.controller.current_frame
+                if current_frame and hasattr(current_frame, 'refresh_colors'):
+                    current_frame.refresh_colors()
                 
         except Exception as e:
             print(f"Error updating application theme: {e}")

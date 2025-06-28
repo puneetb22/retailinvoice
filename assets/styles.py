@@ -116,7 +116,17 @@ THEME_VARIANTS = {
         "selectfg": "#ffffff",
         "border": "#e2e8f0",
         "inputfg": "#1e293b",
-        "inputbg": "#f8fafc"
+        "inputbg": "#f8fafc",
+        "primary_light": "#8b5cf6",
+        "primary_dark": "#4338ca",
+        "secondary_dark": "#475569",
+        "bg_primary": "#ffffff",
+        "bg_secondary": "#f8fafc",
+        "bg_white": "#ffffff",
+        "bg_light": "#f8fafc",
+        "text_primary": "#1e293b",
+        "text_secondary": "#64748b",
+        "text_white": "#ffffff"
     },
     
     "modern_dark": {
@@ -135,7 +145,17 @@ THEME_VARIANTS = {
         "selectfg": "#ffffff",
         "border": "#374151",
         "inputfg": "#f9fafb",
-        "inputbg": "#1f2937"
+        "inputbg": "#1f2937",
+        "primary_light": "#a5b4fc",
+        "primary_dark": "#6366f1",
+        "secondary_dark": "#64748b",
+        "bg_primary": "#111827",
+        "bg_secondary": "#1f2937",
+        "bg_white": "#1f2937",
+        "bg_light": "#374151",
+        "text_primary": "#f9fafb",
+        "text_secondary": "#94a3b8",
+        "text_white": "#ffffff"
     },
     
     "corporate_light": {
@@ -154,7 +174,17 @@ THEME_VARIANTS = {
         "selectfg": "#ffffff", 
         "border": "#bdc3c7",
         "inputfg": "#2c3e50",
-        "inputbg": "#ecf0f1"
+        "inputbg": "#ecf0f1",
+        "primary_light": "#34495e",
+        "primary_dark": "#1a252f",
+        "secondary_dark": "#7f8c8d",
+        "bg_primary": "#ffffff",
+        "bg_secondary": "#ecf0f1",
+        "bg_white": "#ffffff",
+        "bg_light": "#ecf0f1",
+        "text_primary": "#2c3e50",
+        "text_secondary": "#95a5a6",
+        "text_white": "#ffffff"
     },
     
     "corporate_dark": {
@@ -173,7 +203,17 @@ THEME_VARIANTS = {
         "selectfg": "#2c3e50",
         "border": "#34495e", 
         "inputfg": "#ecf0f1",
-        "inputbg": "#34495e"
+        "inputbg": "#34495e",
+        "primary_light": "#5d6d7e",
+        "primary_dark": "#1b2631",
+        "secondary_dark": "#85929e",
+        "bg_primary": "#2c3e50",
+        "bg_secondary": "#34495e",
+        "bg_white": "#34495e",
+        "bg_light": "#34495e",
+        "text_primary": "#ecf0f1",
+        "text_secondary": "#bdc3c7",
+        "text_white": "#ffffff"
     }
 }
 
