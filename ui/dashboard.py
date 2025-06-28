@@ -294,9 +294,61 @@ class Dashboard(tk.Frame):
         self.after(1000, self.update_datetime)
 
     def on_show(self):
-        """Called when dashboard is shown"""
-        # Automatic alerts disabled - now using manual bell icon
+        """Called when frame is shown"""
         pass
+
+    def refresh_colors(self):
+        """Refresh colors when theme changes"""
+        try:
+            # Update main frame background
+            self.configure(bg=COLORS["bg"])
+
+            # Update header frame
+            if hasattr(self, 'header_frame'):
+                self.header_frame.configure(bg=COLORS["bg"])
+
+            # Update all child widgets recursively
+            self.update_widget_colors_recursive(self)
+
+        except Exception as e:
+            print(f"Error refreshing dashboard colors: {e}")
+
+    def update_widget_colors_recursive(self, widget):
+        """Recursively update widget colors"""
+        try:
+            widget_class = widget.winfo_class()
+
+            if widget_class == "Frame":
+                widget.configure(bg=COLORS.get("bg", "#ffffff"))
+            elif widget_class == "Label":
+                widget.configure(
+                    bg=COLORS.get("bg", "#ffffff"),
+                    fg=COLORS.get("fg", "#000000")
+                )
+            elif widget_class == "Button":
+                # Check if it's a navigation button (has specific styling)
+                current_bg = str(widget.cget("bg"))
+                if "primary" in str(widget.cget("text")).lower() or current_bg == COLORS.get("primary", "#2780e3"):
+                    widget.configure(
+                        bg=COLORS.get("primary", "#2780e3"),
+                        fg=COLORS.get("text_white", "#ffffff"),
+                        activebackground=COLORS.get("primary_dark", COLORS.get("primary", "#2780e3"))
+                    )
+                else:
+                    widget.configure(
+                        bg=COLORS.get("bg_secondary", COLORS.get("bg", "#ffffff")),
+                        fg=COLORS.get("fg", "#000000")
+                    )
+
+            # Update children
+            try:
+                for child in widget.winfo_children():
+                    self.update_widget_colors_recursive(child)
+            except:
+                pass
+
+        except Exception as e:
+            pass
 
     def handle_key_event(self, event):
         """Handle keyboard events for navigation"""

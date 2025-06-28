@@ -676,8 +676,15 @@ class SettingsFrame(tk.Frame):
             self.controller.config["low_stock_threshold"] = threshold
             
             # Update theme settings
-            self.controller.config["app_theme"] = self.theme_mode_var.get()
-            self.controller.config["theme_type"] = self.theme_type_var.get()
+            theme_mode = self.theme_mode_var.get()
+            theme_type = self.theme_type_var.get()
+            
+            self.controller.config["app_theme"] = theme_mode
+            self.controller.config["theme_type"] = theme_type
+            
+            # Apply theme immediately
+            set_theme(theme_mode, theme_type)
+            self.update_application_theme()
             
             # Save to file
             config_saved = save_config(self.controller.config)
@@ -686,7 +693,7 @@ class SettingsFrame(tk.Frame):
             db_saved = self._save_system_settings_to_database()
             
             if config_saved and db_saved:
-                messagebox.showinfo("Settings", "System settings saved successfully!")
+                messagebox.showinfo("Settings", "System settings saved and theme applied successfully!")
             else:
                 messagebox.showerror("Settings Error", "Failed to save system settings.")
                 
@@ -829,10 +836,13 @@ class SettingsFrame(tk.Frame):
         # Update the color scheme in styles.py
         self.update_color_scheme(new_colors, theme_mode)
         
-        # Apply the theme
-        set_theme(theme_mode)
+        # Apply the theme with both mode and type
+        set_theme(theme_mode, theme_type)
         
-        messagebox.showinfo("Theme Applied", f"The {theme_type.capitalize()} {theme_mode} theme has been applied. Some components may require restarting the application to fully update.")
+        # Force update all frames in the application
+        self.update_application_theme()
+        
+        messagebox.showinfo("Theme Applied", f"The {theme_type.capitalize()} {theme_mode} theme has been applied successfully!")
     
     def update_color_scheme(self, new_colors, theme_mode):
         """Update the color scheme with new colors"""
@@ -849,9 +859,101 @@ class SettingsFrame(tk.Frame):
         # Update current COLORS if it matches the mode being updated
         current_mode = self.controller.config.get("app_theme", "light")
         if current_mode == theme_mode:
+            COLORS.clear()
             COLORS.update(target_theme)
             # Update all widget styles with new colors
             update_styles()
+    
+    def update_application_theme(self):
+        """Update theme across all application frames"""
+        try:
+            # Get the main controller
+            if hasattr(self.controller, 'frames'):
+                # Update all frames
+                for frame_name, frame in self.controller.frames.items():
+                    self.update_frame_colors(frame)
+            
+            # Update the main window
+            if hasattr(self.controller, 'root'):
+                self.controller.root.configure(bg=COLORS["bg"])
+            
+            # Force refresh of current frame
+            current_frame = self.controller.current_frame
+            if current_frame and hasattr(current_frame, 'refresh_colors'):
+                current_frame.refresh_colors()
+                
+        except Exception as e:
+            print(f"Error updating application theme: {e}")
+    
+    def update_frame_colors(self, frame):
+        """Recursively update colors for a frame and its children"""
+        try:
+            # Update frame background
+            if hasattr(frame, 'configure'):
+                frame.configure(bg=COLORS.get("bg", "#ffffff"))
+            
+            # Update all child widgets
+            for child in frame.winfo_children():
+                self.update_widget_colors(child)
+                
+        except Exception as e:
+            print(f"Error updating frame colors: {e}")
+    
+    def update_widget_colors(self, widget):
+        """Update colors for a specific widget"""
+        try:
+            widget_class = widget.winfo_class()
+            
+            if widget_class == "Frame":
+                widget.configure(bg=COLORS.get("bg", "#ffffff"))
+            elif widget_class == "Label":
+                widget.configure(
+                    bg=COLORS.get("bg", "#ffffff"),
+                    fg=COLORS.get("fg", "#000000")
+                )
+            elif widget_class == "Button":
+                # Check if it has custom styling
+                current_bg = str(widget.cget("bg"))
+                if current_bg in [COLORS.get("primary", "#2780e3"), COLORS.get("secondary", "#7E8081")]:
+                    widget.configure(
+                        bg=COLORS.get("primary", "#2780e3"),
+                        fg=COLORS.get("text_white", "#ffffff")
+                    )
+                else:
+                    widget.configure(
+                        bg=COLORS.get("bg", "#ffffff"),
+                        fg=COLORS.get("fg", "#000000")
+                    )
+            elif widget_class == "Entry":
+                widget.configure(
+                    bg=COLORS.get("inputbg", "#ffffff"),
+                    fg=COLORS.get("inputfg", "#000000"),
+                    insertbackground=COLORS.get("fg", "#000000")
+                )
+            elif widget_class == "Text":
+                widget.configure(
+                    bg=COLORS.get("inputbg", "#ffffff"),
+                    fg=COLORS.get("inputfg", "#000000"),
+                    insertbackground=COLORS.get("fg", "#000000")
+                )
+            elif widget_class == "Listbox":
+                widget.configure(
+                    bg=COLORS.get("inputbg", "#ffffff"),
+                    fg=COLORS.get("inputfg", "#000000"),
+                    selectbackground=COLORS.get("selectbg", "#7e8081"),
+                    selectforeground=COLORS.get("selectfg", "#ffffff")
+                )
+            
+            # Recursively update children
+            try:
+                for child in widget.winfo_children():
+                    self.update_widget_colors(child)
+            except:
+                pass  # Some widgets don't have children
+                
+        except Exception as e:
+            # Skip widgets that can't be configured
+            pass
         
     def show_keyboard_shortcuts(self):
         """Display keyboard shortcuts help"""

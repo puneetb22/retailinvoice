@@ -181,25 +181,45 @@ THEME_VARIANTS = {
 COLORS = LIGHT_THEME.copy()
 
 # Function to switch themes
-def set_theme(theme_name="light"):
+def set_theme(theme_name="light", theme_type="default"):
     """
     Set the application theme
     
     Args:
-        theme_name (str): Theme name ('light', 'dark', or custom theme)
+        theme_name (str): Theme mode ('light' or 'dark')
+        theme_type (str): Theme type/variant
     
     Returns:
         dict: The new color scheme
     """
     global COLORS
     
-    if theme_name.lower() == "dark":
-        COLORS.update(DARK_THEME)
-    elif theme_name in THEME_VARIANTS:
-        COLORS.update(THEME_VARIANTS[theme_name])
-    else:  # Default to light theme
-        COLORS.update(LIGHT_THEME)
-        
+    # Get the appropriate theme colors
+    if theme_type != "default" and theme_type in ["modern", "corporate"]:
+        variant_key = f"{theme_type}_{theme_name}"
+        if variant_key in THEME_VARIANTS:
+            COLORS.clear()
+            COLORS.update(THEME_VARIANTS[variant_key])
+        else:
+            # Fallback to base themes
+            if theme_name.lower() == "dark":
+                COLORS.clear()
+                COLORS.update(DARK_THEME)
+            else:
+                COLORS.clear()
+                COLORS.update(LIGHT_THEME)
+    else:
+        # Use base themes
+        if theme_name.lower() == "dark":
+            COLORS.clear()
+            COLORS.update(DARK_THEME)
+        else:
+            COLORS.clear()
+            COLORS.update(LIGHT_THEME)
+    
+    # Update all dynamic styles
+    update_styles()
+    
     return COLORS
 
 def get_theme_colors(theme_type, theme_mode):
