@@ -397,6 +397,10 @@ class Dashboard(tk.Frame):
         y = (alerts_window.winfo_screenheight() // 2) - (height // 2)
         alerts_window.geometry(f"+{x}+{y}")
 
+        # Bind ESC key to close dialog
+        alerts_window.bind("<Escape>", lambda e: alerts_window.destroy())
+        alerts_window.focus_set()  # Set focus to enable ESC key
+
         # Title
         title = tk.Label(alerts_window,
                         text="🔔 Inventory Alerts",
@@ -417,11 +421,11 @@ class Dashboard(tk.Frame):
             low_stock_text = tk.Text(low_stock_frame, wrap=tk.WORD, height=10, font=FONTS["regular"])
             low_stock_scrollbar = ttk.Scrollbar(low_stock_frame, command=low_stock_text.yview)
             low_stock_text.config(yscrollcommand=low_stock_scrollbar.set)
-            
+
             for item in low_stock_items:
                 qty = item[1] if item[1] is not None else 0
                 low_stock_text.insert(tk.END, f"• {item[0]} - Quantity: {qty}\n")
-            
+
             low_stock_text.config(state=tk.DISABLED)
             low_stock_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
             low_stock_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
@@ -438,11 +442,11 @@ class Dashboard(tk.Frame):
             expiring_text = tk.Text(expiring_frame, wrap=tk.WORD, height=10, font=FONTS["regular"])
             expiring_scrollbar = ttk.Scrollbar(expiring_frame, command=expiring_text.yview)
             expiring_text.config(yscrollcommand=expiring_scrollbar.set)
-            
+
             for item in expiring_items:
                 batch_info = f" (Batch: {item[1]})" if item[1] else ""
                 expiring_text.insert(tk.END, f"• {item[0]}{batch_info} - Expires: {item[2]} - Qty: {item[3]}\n")
-            
+
             expiring_text.config(state=tk.DISABLED)
             expiring_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
             expiring_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
@@ -459,11 +463,11 @@ class Dashboard(tk.Frame):
             expired_text = tk.Text(expired_frame, wrap=tk.WORD, height=10, font=FONTS["regular"])
             expired_scrollbar = ttk.Scrollbar(expired_frame, command=expired_text.yview)
             expired_text.config(yscrollcommand=expired_scrollbar.set)
-            
+
             for item in expired_items:
                 batch_info = f" (Batch: {item[1]})" if item[1] else ""
                 expired_text.insert(tk.END, f"• {item[0]}{batch_info} - Expired: {item[2]} - Qty: {item[3]}\n")
-            
+
             expired_text.config(state=tk.DISABLED)
             expired_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
             expired_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
@@ -483,7 +487,7 @@ class Dashboard(tk.Frame):
                              cursor="hand2",
                              command=alerts_window.destroy)
         close_btn.pack(pady=20)
-    
+
     def show_frame(self, module_name):
         """Function to load frame based on the module name."""
         self.load_module(module_name)
