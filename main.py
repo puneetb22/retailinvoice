@@ -65,6 +65,14 @@ class POSApplication(tk.Tk):
         # Initialize UI
         self.setup_ui()
         
+        # Bind global function key shortcuts for menu navigation
+        self.bind_all("<F1>", lambda event: self.navigate_to_menu("sales"))
+        self.bind_all("<F2>", lambda event: self.navigate_to_menu("sales_history"))
+        self.bind_all("<F3>", lambda event: self.navigate_to_menu("inventory"))
+        self.bind_all("<F4>", lambda event: self.navigate_to_menu("customers"))
+        self.bind_all("<F5>", lambda event: self.navigate_to_menu("reports"))
+        self.bind_all("<F6>", lambda event: self.navigate_to_menu("accounting"))
+        
         # Skip login and go directly to dashboard (temporary)
         self.show_frame("dashboard")
         
@@ -94,6 +102,16 @@ class POSApplication(tk.Tk):
             # Call on_show method if exists (for refreshing data)
             if hasattr(frame, 'on_show'):
                 frame.on_show()
+    
+    def navigate_to_menu(self, module_name):
+        """Navigate to a specific menu module from anywhere in the app"""
+        # First ensure we're on the dashboard frame
+        self.show_frame("dashboard")
+        
+        # Then load the specific module in the dashboard
+        dashboard = self.frames.get("dashboard")
+        if dashboard and hasattr(dashboard, 'load_module'):
+            dashboard.load_module(module_name)
     
     def show_dashboard(self):
         """Show the main dashboard"""
