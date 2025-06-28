@@ -979,5 +979,6 @@ class SettingsFrame(tk.Frame):
         x = (shortcuts_window.winfo_screenwidth() // 2) - (shortcuts_window.winfo_width() // 2)
         y = (shortcuts_window.winfo_screenheight() // 2) - (shortcuts_window.winfo_height() // 2)
         shortcuts_window.geometry(f"+{x}+{y}")
-else:
-    print("Settings frame initialization completed successfully.")
+
+# Initialize settings module
+print("Settings frame initialization completed successfully.")
