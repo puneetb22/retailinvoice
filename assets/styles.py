@@ -6,33 +6,47 @@ Contains color schemes, fonts, and common styles
 # Light theme color scheme
 LIGHT_THEME = {
     # Primary colors
-    "primary": "#4e73df",  # Main blue color
-    "primary_light": "#6f8ce9",
-    "primary_dark": "#2e59d9",
+    "primary": "#2780e3",  # Main blue color (updated to match)
+    "primary_light": "#4a96e8",
+    "primary_dark": "#1a66c7",
     
     # Secondary colors
-    "secondary": "#1cc88a",  # Green color
-    "secondary_dark": "#13855c",
+    "secondary": "#7E8081",  # Gray color (updated to match)
+    "secondary_dark": "#6a6d6e",
     
     # Background colors
-    "bg_primary": "#f8f9fc",  # Light gray background
+    "bg_primary": "#F8F9FA",  # Light background (updated to match)
     "bg_secondary": "#eaecf4",  # Slightly darker gray
     "bg_white": "#ffffff",
-    "bg_light": "#f0f2f8",  # Very light gray
+    "bg": "#ffffff",  # Added to match format
+    "bg_light": "#F8F9FA",  # Very light gray
     
     # Text colors
-    "text_primary": "#5a5c69",  # Main text color
-    "text_secondary": "#858796",  # Secondary text color
+    "text_primary": "#373a3c",  # Main text color (updated to match fg)
+    "text_secondary": "#7E8081",  # Secondary text color (updated)
     "text_white": "#ffffff",
+    "fg": "#373a3c",  # Added to match format
     
     # Status/Alert colors
-    "success": "#1cc88a",  # Green
-    "danger": "#e74a3b",   # Red
-    "warning": "#f6c23e",  # Yellow
-    "info": "#36b9cc",     # Light blue
+    "success": "#3fb618",  # Green (updated to match)
+    "danger": "#ff0039",   # Red (updated to match)
+    "warning": "#ff7518",  # Orange (updated to match)
+    "info": "#9954bb",     # Purple (updated to match)
     
     # Border and highlight colors
-    "border": "#d1d3e2",   # Light gray border color
+    "border": "#ced4da",   # Border color (updated to match)
+    
+    # Input colors (added to match format)
+    "inputfg": "#373a3c",
+    "inputbg": "#fdfdfe",
+    
+    # Select colors (added to match format)
+    "selectbg": "#7e8081",
+    "selectfg": "#ffffff",
+    
+    # Light and dark (added to match format)
+    "light": "#F8F9FA",
+    "dark": "#373A3C",
     
     # Additional status colors (light versions)
     "success_light": "#e6fff5",
@@ -44,33 +58,47 @@ LIGHT_THEME = {
 # Dark theme color scheme
 DARK_THEME = {
     # Primary colors
-    "primary": "#3a56b0",  # Darker blue color
-    "primary_light": "#4e73df",
-    "primary_dark": "#2a3d7d",
+    "primary": "#2780e3",  # Keep consistent with light theme
+    "primary_light": "#4a96e8",
+    "primary_dark": "#1a66c7",
     
     # Secondary colors
-    "secondary": "#19a372",  # Darker green color
-    "secondary_dark": "#0f724f",
+    "secondary": "#7E8081",  # Keep consistent with light theme
+    "secondary_dark": "#6a6d6e",
     
     # Background colors
     "bg_primary": "#1e1e2d",  # Dark background
     "bg_secondary": "#2a2a3c",  # Slightly lighter dark
     "bg_white": "#2a2a3c",
+    "bg": "#1e1e2d",  # Added to match format
     "bg_light": "#24243a",  # Light dark background
     
     # Text colors
     "text_primary": "#e0e0e0",  # Light text color
     "text_secondary": "#b0b0b0",  # Secondary light text color
     "text_white": "#ffffff",
+    "fg": "#e0e0e0",  # Added to match format
     
     # Status/Alert colors
-    "success": "#1cc88a",  # Green
-    "danger": "#e74a3b",   # Red
-    "warning": "#f6c23e",  # Yellow
-    "info": "#36b9cc",     # Light blue
+    "success": "#3fb618",  # Keep consistent with light theme
+    "danger": "#ff0039",   # Keep consistent with light theme
+    "warning": "#ff7518",  # Keep consistent with light theme
+    "info": "#9954bb",     # Keep consistent with light theme
     
     # Border and highlight colors
     "border": "#3a3a50",   # Dark border color
+    
+    # Input colors (added to match format)
+    "inputfg": "#e0e0e0",
+    "inputbg": "#24243a",
+    
+    # Select colors (added to match format)
+    "selectbg": "#7e8081",
+    "selectfg": "#ffffff",
+    
+    # Light and dark (added to match format)
+    "light": "#24243a",
+    "dark": "#1e1e2d",
     
     # Additional status colors (light versions)
     "success_light": "#132218",
