@@ -769,7 +769,21 @@ class SalesHistoryFrame(tk.Frame):
         
         if not invoices:
             self.update_stats(0, 0)
-            messagebox.showinfo("No Invoices", f"No invoices found for {self.selected_date.strftime('%d-%m-%Y')}.")
+            # Add a placeholder row to show no invoices found
+            self.sales_tree.insert(
+                "",
+                "end",
+                values=(
+                    f"No invoices found for {self.selected_date.strftime('%d-%m-%Y')}",
+                    "",
+                    "",
+                    "",
+                    ""
+                ),
+                tags=("no_data",)
+            )
+            # Configure tag for no data message
+            self.sales_tree.tag_configure("no_data", foreground=COLORS["text_secondary"])
             return
         
         # Calculate total sales
@@ -1518,6 +1532,10 @@ class SalesHistoryFrame(tk.Frame):
         payment_dialog.resizable(False, False)
         payment_dialog.configure(bg=COLORS["bg_primary"])
         payment_dialog.grab_set()  # Make window modal
+        
+        # Bind ESC key to close dialog
+        payment_dialog.bind("<Escape>", lambda e: payment_dialog.destroy())
+        payment_dialog.focus_set()  # Set focus to enable ESC key
         
         # Center the dialog
         payment_dialog.update_idletasks()
