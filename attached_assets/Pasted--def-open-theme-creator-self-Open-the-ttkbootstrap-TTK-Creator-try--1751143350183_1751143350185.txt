@@ -1,0 +1,83 @@
+
+    def open_theme_creator(self):
+        """Open the ttkbootstrap TTK Creator"""
+        try:
+            import subprocess
+            import sys
+            
+            # Launch TTK Creator in a new process
+            process = subprocess.Popen([sys.executable, "-m", "ttkcreator"])
+            
+            # Show instructions
+            Messagebox.show_info(
+                "TTK Creator has been launched in a new window.\n\n"
+                "Instructions:\n"
+                "1. Name your theme using the name entry\n"
+                "2. Select a base theme for initial colors\n"
+                "3. Customize colors using the color picker\n"
+                "4. Click Save to save your theme\n"
+                "5. Your theme will be saved in ttkbootstrap.themes.user.py\n\n"
+                "After saving, click OK to reload themes.",
+                "Theme Creator"
+            )
+            
+            # Reload themes after creator is closed
+            self.reload_themes()
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            Messagebox.show_error(f"Failed to open theme creator: {str(e)}")
+            
+    def reload_themes(self):
+        """Reload available themes and update dropdown"""
+        try:
+            # Get available themes
+            available_themes = ttk.Style().theme_names()
+            
+            # Sort themes into light and dark
+            light_themes = [t for t in available_themes if t not in ["darkly", "vapor", "cyborg", "superhero"]]
+            dark_themes = ["darkly", "vapor", "cyborg", "superhero"]
+            
+            # Update theme lists
+            self.light_themes = light_themes
+            self.dark_themes = dark_themes
+            
+            # Update dropdown values
+            current_mode = self.theme_mode_var.get()
+            self.theme_dropdown.configure(
+                values=self.light_themes if current_mode == "light" else self.dark_themes
+            )
+            
+            # If current theme is not in new list, select first theme
+            current_theme = self.theme_var.get()
+            if current_theme not in self.theme_dropdown["values"]:
+                self.theme_var.set(self.theme_dropdown["values"][0])
+                
+            # Apply the current theme
+            self.preview_changes()
+            
+        except Exception as e:
+            Messagebox.show_error(f"Failed to reload themes: {str(e)}")
+            
+    def update_theme_list(self):
+        """Update theme list based on selected mode"""
+        # Update dropdown values based on mode
+        if self.theme_mode_var.get() == "light":
+            self.theme_dropdown.configure(values=self.light_themes)
+        else:
+            self.theme_dropdown.configure(values=self.dark_themes)
+            
+        # If current theme is not in new list, select first theme
+        current_theme = self.theme_var.get()
+        if current_theme not in self.theme_dropdown["values"]:
+            self.theme_var.set(self.theme_dropdown["values"][0])
+            
+        # Apply the current theme
+        self.preview_changes()
+
+    def preview_changes(self):
+        """Preview the selected theme and font settings"""
+        # Apply theme
+        theme = self.theme_var.get()
+        set_theme(theme)
