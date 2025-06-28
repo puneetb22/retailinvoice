@@ -827,8 +827,7 @@ class CustomerManagementFrame(tk.Frame):
         query = """
             SELECT credit_limit FROM customers WHERE id = ?
         """
-        customer_credit_limit = self.controller.db.fetchone(query,```python
- (customer_id,))[0] or 0
+        customer_credit_limit = self.controller.db.fetchone(query, (customer_id,))[0] or 0
 
         # Get total outstanding credit
         query = """
