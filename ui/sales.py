@@ -896,6 +896,9 @@ class SalesFrame(tk.Frame):
         self.products_tree.bind("<Double-1>", self.add_to_cart)
         # Bind Enter key directly to the treeview
         self.products_tree.bind("<Return>", self.add_to_cart)
+        # Bind arrow keys for navigation
+        self.products_tree.bind("<Up>", self.handle_key_event)
+        self.products_tree.bind("<Down>", self.handle_key_event)
         
         # Load products initially
         self.load_products()
@@ -1419,6 +1422,10 @@ class SalesFrame(tk.Frame):
                 
                 # Close dialog
                 dialog.destroy()
+                
+                # Return focus to products tree for continued navigation
+                self.current_focus = "products"
+                self.after(100, self._update_focus)  # Delay focus update to ensure dialog is closed
                 
             except ValueError:
                 messagebox.showwarning("Invalid Input", 
@@ -4591,10 +4598,8 @@ class SalesFrame(tk.Frame):
         # Get the widget that currently has focus
         focused_widget = self.focus_get()
         
-        
-        
-        # Tab key is handled normally by the system for form navigation
-        # No custom Tab navigation for menu/sections
+        # Tab key is completely disabled for menu navigation
+        # It works normally only for form field navigation
         
         # Ctrl+Shift+P to focus products
         if ctrl and shift and key.lower() == "p":
@@ -4614,27 +4619,61 @@ class SalesFrame(tk.Frame):
             self._update_focus()
             return "break"
         
+        # Arrow key navigation for products list
+        elif key in ["Up", "Down"] and (focused_widget == self.products_tree or self.current_focus == "products"):
+            items = self.products_tree.get_children()
+            if not items:
+                return
+            
+            selected = self.products_tree.selection()
+            if not selected:
+                # No selection, select first item
+                self.products_tree.selection_set(items[0])
+                self.products_tree.focus(items[0])
+                self.products_tree.see(items[0])
+                return "break"
+            
+            current_item = selected[0]
+            current_index = items.index(current_item)
+            
+            if key == "Down" and current_index < len(items) - 1:
+                next_item = items[current_index + 1]
+                self.products_tree.selection_set(next_item)
+                self.products_tree.focus(next_item)
+                self.products_tree.see(next_item)
+                return "break"
+            elif key == "Up" and current_index > 0:
+                prev_item = items[current_index - 1]
+                self.products_tree.selection_set(prev_item)
+                self.products_tree.focus(prev_item)
+                self.products_tree.see(prev_item)
+                return "break"
+        
         # Enter key to select or edit
         elif key == "Return":
             # Check if we're in the products or cart treeview
-            if focused_widget == self.products_tree:
-                # The Enter key is now directly bound to the treeview via self.products_tree.bind("<Return>", self.add_to_cart)
-                # so we don't need to handle it here, but keep as backup
+            if focused_widget == self.products_tree or self.current_focus == "products":
+                # Ensure we have a selection in products tree
+                if not self.products_tree.selection():
+                    items = self.products_tree.get_children()
+                    if items:
+                        self.products_tree.selection_set(items[0])
+                        self.products_tree.focus(items[0])
+                
                 self.add_to_cart(None)
                 return "break"
             elif focused_widget == self.cart_tree:
                 self.edit_cart_item()
                 return "break"
-            elif self.current_focus == "products":
-                self.add_to_cart(None)
-            elif self.current_focus == "cart":
-                self.edit_cart_item()
         
         # Escape key to clear search
         elif key == "Escape":
             if self.current_focus == "products" or focused_widget == self.products_tree:
                 self.search_var.set("")
                 self.load_products()
+                # Return focus to products tree after clearing search
+                self.current_focus = "products"
+                self._update_focus()
     
     def _update_focus(self):
         """Update the focus based on current_focus"""
@@ -4648,6 +4687,7 @@ class SalesFrame(tk.Frame):
                 if items:
                     self.products_tree.selection_set(items[0])
                     self.products_tree.focus(items[0])
+                    self.products_tree.see(items[0])
         
         elif self.current_focus == "cart":
             # Focus cart treeview
@@ -4677,9 +4717,9 @@ class SalesFrame(tk.Frame):
         # Reset the view
         self.load_products()
         
-        # Set initial focus to products treeview
+        # Set initial focus to products treeview with proper selection
         self.current_focus = "products"
-        self._update_focus()
+        self.after(200, self._update_focus)  # Delay to ensure UI is fully loaded
 
     def generate_invoice(self):
         """Generate invoice for current sale using pre-calculated totals"""
