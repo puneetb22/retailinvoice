@@ -4597,7 +4597,7 @@ class SalesFrame(tk.Frame):
         # No custom Tab navigation for menu/sections
         
         # Ctrl+Shift+P to focus products
-        elif ctrl and shift and key.lower() == "p":
+        if ctrl and shift and key.lower() == "p":
             self.current_focus = "products"
             self._update_focus()
             return "break"
