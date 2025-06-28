@@ -196,12 +196,14 @@ class AccountingFrame(tk.Frame):
         actions_frame = tk.Frame(top_panel, bg=COLORS["bg_secondary"], pady=10)
         actions_frame.pack(fill=tk.X, padx=20, pady=5)
         
-        # Generate report button with improved styling
+        # Generate report button using theme properties
         generate_btn = tk.Button(actions_frame,
                                text="Generate Report",
                                font=FONTS["regular_bold"],
                                bg=COLORS["primary"],
                                fg=COLORS["text_white"],
+                               activebackground=COLORS["primary_light"],
+                               activeforeground=COLORS["text_white"],
                                padx=15,
                                pady=8,
                                relief=tk.FLAT,
@@ -209,12 +211,14 @@ class AccountingFrame(tk.Frame):
                                command=self.load_profit_loss)
         generate_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        # Export button with improved styling
+        # Export button using theme properties
         export_btn = tk.Button(actions_frame,
                              text="Export to Excel",
                              font=FONTS["regular"],
                              bg=COLORS["secondary"],
                              fg=COLORS["text_white"],
+                             activebackground=COLORS["secondary_dark"],
+                             activeforeground=COLORS["text_white"],
                              padx=15,
                              pady=8,
                              relief=tk.FLAT,

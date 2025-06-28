@@ -171,24 +171,28 @@ class ReportsFrame(tk.Frame):
         # Initial state - hide custom date frame
         self.toggle_custom_date_range()
         
-        # Generate report button
+        # Generate report button using theme properties
         generate_btn = tk.Button(parent,
                                text="Generate Report",
                                font=FONTS["regular_bold"],
                                bg=COLORS["primary"],
                                fg=COLORS["text_white"],
+                               activebackground=COLORS["primary_light"],
+                               activeforeground=COLORS["text_white"],
                                padx=10,
                                pady=5,
                                cursor="hand2",
                                command=self.load_sales_summary)
         generate_btn.pack(padx=10, pady=15)
         
-        # Export button
+        # Export button using theme properties
         export_btn = tk.Button(parent,
                              text="Export to Excel",
                              font=FONTS["regular"],
                              bg=COLORS["secondary"],
                              fg=COLORS["text_white"],
+                             activebackground=COLORS["secondary_dark"],
+                             activeforeground=COLORS["text_white"],
                              padx=10,
                              pady=5,
                              cursor="hand2",

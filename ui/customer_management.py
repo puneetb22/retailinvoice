@@ -60,12 +60,14 @@ class CustomerManagementFrame(tk.Frame):
                                width=30)
         search_entry.pack(side=tk.LEFT)
 
-        # Add customer button
+        # Add customer button using theme properties
         add_btn = tk.Button(search_frame,
                           text="Add New Customer",
                           font=FONTS["regular"],
                           bg=COLORS["primary"],
                           fg=COLORS["text_white"],
+                          activebackground=COLORS["primary_light"],
+                          activeforeground=COLORS["text_white"],
                           padx=15,
                           pady=5,
                           cursor="hand2",
@@ -139,36 +141,42 @@ class CustomerManagementFrame(tk.Frame):
         button_frame = tk.Frame(self, bg=COLORS["bg_primary"], pady=10, padx=20)
         button_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Delete customer button
+        # Delete customer button using theme properties
         delete_btn = tk.Button(button_frame,
                              text="Delete Customer",
                              font=FONTS["regular"],
                              bg=COLORS["danger"],
                              fg=COLORS["text_white"],
+                             activebackground=COLORS["danger"],
+                             activeforeground=COLORS["text_white"],
                              padx=15,
                              pady=5,
                              cursor="hand2",
                              command=self.delete_customer)
         delete_btn.pack(side=tk.RIGHT, padx=5)
 
-        # Edit customer button
+        # Edit customer button using theme properties
         edit_btn = tk.Button(button_frame,
                            text="Edit Customer",
                            font=FONTS["regular"],
                            bg=COLORS["secondary"],
                            fg=COLORS["text_white"],
+                           activebackground=COLORS["secondary_dark"],
+                           activeforeground=COLORS["text_white"],
                            padx=15,
                            pady=5,
                            cursor="hand2",
                            command=self.edit_customer)
         edit_btn.pack(side=tk.RIGHT, padx=5)
 
-        # View history button
+        # View history button using theme properties
         history_btn = tk.Button(button_frame,
                               text="View Purchase History",
                               font=FONTS["regular"],
                               bg=COLORS["primary"],
                               fg=COLORS["text_white"],
+                              activebackground=COLORS["primary_light"],
+                              activeforeground=COLORS["text_white"],
                               padx=15,
                               pady=5,
                               cursor="hand2",
@@ -334,12 +342,14 @@ class CustomerManagementFrame(tk.Frame):
         button_frame = tk.Frame(dialog, bg=COLORS["bg_primary"], pady=15)
         button_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Cancel button
+        # Cancel button using theme properties
         cancel_btn = tk.Button(button_frame,
                              text="Cancel",
                              font=FONTS["regular"],
                              bg=COLORS["bg_secondary"],
                              fg=COLORS["text_primary"],
+                             activebackground=COLORS["bg_primary"],
+                             activeforeground=COLORS["text_primary"],
                              padx=20,
                              pady=5,
                              cursor="hand2",
@@ -384,12 +394,14 @@ class CustomerManagementFrame(tk.Frame):
             else:
                 messagebox.showerror("Error", "Failed to add customer.")
 
-        # Save button
+        # Save button using theme properties
         save_btn = tk.Button(button_frame,
                            text="Save Customer",
                            font=FONTS["regular"],
                            bg=COLORS["primary"],
                            fg=COLORS["text_white"],
+                           activebackground=COLORS["primary_light"],
+                           activeforeground=COLORS["text_white"],
                            padx=20,
                            pady=5,
                            cursor="hand2",
@@ -815,7 +827,8 @@ class CustomerManagementFrame(tk.Frame):
         query = """
             SELECT credit_limit FROM customers WHERE id = ?
         """
-        customer_credit_limit = self.controller.db.fetchone(query, (customer_id,))[0] or 0
+        customer_credit_limit = self.controller.db.fetchone(```python
+query, (customer_id,))[0] or 0
 
         # Get total outstanding credit
         query = """

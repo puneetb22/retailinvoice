@@ -349,36 +349,42 @@ class SalesFrame(tk.Frame):
         # Load initial customer list
         self.load_customers_for_dropdown()
         
-        # Walk-in customer button with clean styling
+        # Walk-in customer button using theme properties
         walkin_btn = tk.Button(container,
                              text="Walk-in",
                              font=FONTS["regular"],
                              bg=COLORS["bg_secondary"],
                              fg=COLORS["text_primary"],
+                             activebackground=COLORS["bg_primary"],
+                             activeforeground=COLORS["text_primary"],
                              padx=10,
                              pady=3,
                              cursor="hand2",
                              command=self.set_walkin_customer)
         walkin_btn.pack(side=tk.LEFT, padx=5)
         
-        # New customer button with clean styling
+        # New customer button using theme properties
         new_btn = tk.Button(container,
                           text="+ New",
                           font=FONTS["regular"],
                           bg=COLORS["secondary"],
                           fg=COLORS["text_white"],
+                          activebackground=COLORS["secondary_dark"],
+                          activeforeground=COLORS["text_white"],
                           padx=10,
                           pady=3,
                           cursor="hand2",
                           command=lambda: self.change_customer(add_new=True))
         new_btn.pack(side=tk.LEFT, padx=5)
         
-        # Directory button with clean styling
+        # Directory button using theme properties
         dir_btn = tk.Button(container,
                           text="📁",
                           font=FONTS["regular_bold"],
                           bg=COLORS["primary"],
                           fg=COLORS["text_white"],
+                          activebackground=COLORS["primary_light"],
+                          activeforeground=COLORS["text_white"],
                           padx=8,
                           pady=3,
                           cursor="hand2",
@@ -730,36 +736,42 @@ class SalesFrame(tk.Frame):
         payment_frame = tk.Frame(parent, bg=COLORS["bg_primary"], pady=10)
         payment_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        # Cancel button
+        # Cancel button using theme properties
         cancel_btn = tk.Button(payment_frame,
                              text="CANCEL",
                              font=FONTS["regular_bold"],
                              bg=COLORS["danger"],
                              fg=COLORS["text_white"],
+                             activebackground=COLORS["danger"],
+                             activeforeground=COLORS["text_white"],
                              padx=15,
                              pady=10,
                              cursor="hand2",
                              command=self.cancel_sale)
         cancel_btn.pack(side=tk.LEFT, padx=5)
         
-        # Suspend button - for saving a sale for later
+        # Suspend button using theme properties
         suspend_btn = tk.Button(payment_frame,
                               text="SUSPEND",
                               font=FONTS["regular_bold"],
                               bg=COLORS["warning"],
-                              fg=COLORS["text_primary"],
+                              fg=COLORS["text_white"],
+                              activebackground=COLORS["warning"],
+                              activeforeground=COLORS["text_white"],
                               padx=15,
                               pady=10,
                               cursor="hand2",
                               command=self.suspend_sale)
         suspend_btn.pack(side=tk.LEFT, padx=5)
         
-        # Suspended bills button
+        # Suspended bills button using theme properties
         suspended_btn = tk.Button(payment_frame,
                                 text="SUSPENDED",
                                 font=FONTS["regular_bold"],
                                 bg=COLORS["bg_secondary"],
                                 fg=COLORS["text_primary"],
+                                activebackground=COLORS["bg_primary"],
+                                activeforeground=COLORS["text_primary"],
                                 padx=15,
                                 pady=10,
                                 cursor="hand2",
@@ -770,36 +782,42 @@ class SalesFrame(tk.Frame):
         payment_btns_frame = tk.Frame(payment_frame, bg=COLORS["bg_primary"])
         payment_btns_frame.pack(side=tk.RIGHT)
         
-        # Cash payment button
+        # Cash payment button using theme properties
         cash_btn = tk.Button(payment_btns_frame,
                            text="CASH",
                            font=FONTS["regular_bold"],
                            bg=COLORS["success"],
                            fg=COLORS["text_white"],
+                           activebackground=COLORS["success"],
+                           activeforeground=COLORS["text_white"],
                            padx=15,
                            pady=10,
                            cursor="hand2",
                            command=lambda: self.process_payment("CASH"))
         cash_btn.pack(side=tk.LEFT, padx=5)
         
-        # UPI payment button
+        # UPI payment button using theme properties
         upi_btn = tk.Button(payment_btns_frame,
                           text="UPI",
                           font=FONTS["regular_bold"],
                           bg=COLORS["secondary"],
                           fg=COLORS["text_white"],
+                          activebackground=COLORS["secondary_dark"],
+                          activeforeground=COLORS["text_white"],
                           padx=15,
                           pady=10,
                           cursor="hand2",
                           command=lambda: self.process_payment("UPI"))
         upi_btn.pack(side=tk.LEFT, padx=5)
         
-        # Credit payment button
+        # Credit payment button using theme properties
         credit_btn = tk.Button(payment_btns_frame,
                              text="CREDIT",
                              font=FONTS["regular_bold"],
                              bg=COLORS["primary"],
                              fg=COLORS["text_white"],
+                             activebackground=COLORS["primary_light"],
+                             activeforeground=COLORS["text_white"],
                              padx=15,
                              pady=10,
                              cursor="hand2",

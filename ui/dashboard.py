@@ -139,7 +139,7 @@ class Dashboard(tk.Frame):
         # Create buttons
         for item in nav_items:
             # Create a frame for each button to ensure consistent layout
-            btn_frame = tk.Frame(self.nav_frame, bg=COLORS.get("bg_secondary", COLORS["bg"]))
+            btn_frame = tk.Frame(self.nav_frame, bg=COLORS["bg_secondary"])
             btn_frame.pack(side=tk.TOP, fill=tk.X, pady=2)
 
             # Create the button with fixed width icon space
@@ -149,10 +149,9 @@ class Dashboard(tk.Frame):
             # Set font based on whether this is the initial selection
             button_font = (FONTS["nav_item"][0], FONTS["nav_item"][1], "bold") if is_initial_selection else FONTS["nav_item"]
 
-            # Set background and foreground colors based on selection - using a darker color for selected text
-            bg_color = COLORS["primary"] if is_initial_selection else COLORS.get("bg_secondary", COLORS["bg"])
-            # Changed from text_white to text_white_highlight to improve visibility
-            fg_color = "#ffeb3b" if is_initial_selection else COLORS["text_primary"]  # Using a yellow color for selected items
+            # Set background and foreground colors based on selection using theme properties
+            bg_color = COLORS["primary"] if is_initial_selection else COLORS["bg_secondary"]
+            fg_color = COLORS["text_white"] if is_initial_selection else COLORS["text_primary"]
 
             btn = tk.Button(btn_frame,
                           text=f"{item['icon']}{item['text']}",
@@ -169,9 +168,9 @@ class Dashboard(tk.Frame):
                           activeforeground=COLORS["text_white"],
                           cursor="hand2",
                           justify=tk.LEFT,
-                          highlightthickness=3,  # Increased highlight thickness for better visibility
-                          highlightcolor=COLORS["primary"],  # Set focus color
-                          highlightbackground=COLORS.get("bg_secondary", COLORS["bg"]),  # Set inactive color
+                          highlightthickness=3,
+                          highlightcolor=COLORS["primary"],
+                          highlightbackground=COLORS["bg_secondary"],
                           command=lambda i=item["name"]: self.load_module(i))
             btn.pack(side=tk.TOP, padx=0, pady=3, fill=tk.X)
 
@@ -193,7 +192,7 @@ class Dashboard(tk.Frame):
         exit_btn = tk.Button(self.nav_frame,
                            text="🚪 Exit Application",
                            font=FONTS["nav_item"],
-                           bg=COLORS.get("bg_secondary", COLORS["bg"]),
+                           bg=COLORS["bg_secondary"],
                            fg=COLORS["danger"],
                            bd=0,
                            padx=10,
@@ -204,9 +203,9 @@ class Dashboard(tk.Frame):
                            activebackground=COLORS["danger"],
                            activeforeground=COLORS["text_white"],
                            cursor="hand2",
-                           highlightthickness=3,  # Increased highlight thickness for better visibility
-                           highlightcolor=COLORS["danger"],  # Set focus color (red for exit)
-                           highlightbackground=COLORS.get("bg_secondary", COLORS["bg"]),  # Set inactive color
+                           highlightthickness=3,
+                           highlightcolor=COLORS["danger"],
+                           highlightbackground=COLORS["bg_secondary"],
                            command=self.controller.exit_application)
         exit_btn.pack(side=tk.BOTTOM, padx=0, pady=20, fill=tk.X)
 

@@ -116,72 +116,84 @@ class BackupFrame(tk.Frame):
                         fg=COLORS["text_primary"])
         title.pack(pady=(20, 30))
         
-        # Create new backup
+        # Create new backup using theme properties
         backup_btn = tk.Button(parent,
                              text="Create New Backup",
                              font=FONTS["regular_bold"],
                              bg=COLORS["primary"],
                              fg=COLORS["text_white"],
+                             activebackground=COLORS["primary_light"],
+                             activeforeground=COLORS["text_white"],
                              padx=20,
                              pady=10,
                              cursor="hand2",
                              command=self.create_new_backup)
         backup_btn.pack(pady=10, fill=tk.X, padx=20)
         
-        # Restore selected backup
+        # Restore selected backup using theme properties
         restore_btn = tk.Button(parent,
                               text="Restore Selected Backup",
                               font=FONTS["regular"],
                               bg=COLORS["secondary"],
                               fg=COLORS["text_white"],
+                              activebackground=COLORS["secondary_dark"],
+                              activeforeground=COLORS["text_white"],
                               padx=20,
                               pady=10,
                               cursor="hand2",
                               command=self.restore_selected_backup)
         restore_btn.pack(pady=10, fill=tk.X, padx=20)
         
-        # Refresh list
+        # Refresh list using theme properties
         refresh_btn = tk.Button(parent,
                               text="Refresh List",
                               font=FONTS["regular"],
                               bg=COLORS["info"],
                               fg=COLORS["text_white"],
+                              activebackground=COLORS["info"],
+                              activeforeground=COLORS["text_white"],
                               padx=20,
                               pady=10,
                               cursor="hand2",
                               command=self.load_backups)
         refresh_btn.pack(pady=10, fill=tk.X, padx=20)
         
-        # Import backup
+        # Import backup using theme properties
         import_btn = tk.Button(parent,
                              text="Import Backup File",
                              font=FONTS["regular"],
                              bg=COLORS["bg_white"],
                              fg=COLORS["text_primary"],
+                             activebackground=COLORS["bg_primary"],
+                             activeforeground=COLORS["text_primary"],
                              padx=20,
                              pady=10,
                              cursor="hand2",
                              command=self.import_backup)
         import_btn.pack(pady=10, fill=tk.X, padx=20)
         
-        # Export backup
+        # Export backup using theme properties
         export_btn = tk.Button(parent,
                              text="Export Selected Backup",
                              font=FONTS["regular"],
                              bg=COLORS["bg_white"],
                              fg=COLORS["text_primary"],
+                             activebackground=COLORS["bg_primary"],
+                             activeforeground=COLORS["text_primary"],
                              padx=20,
                              pady=10,
                              cursor="hand2",
                              command=self.export_backup)
         export_btn.pack(pady=10, fill=tk.X, padx=20)
         
-        # Delete backup
+        # Delete backup using theme properties
         delete_btn = tk.Button(parent,
                              text="Delete Selected Backup",
                              font=FONTS["regular"],
                              bg=COLORS["danger"],
                              fg=COLORS["text_white"],
+                             activebackground=COLORS["danger"],
+                             activeforeground=COLORS["text_white"],
                              padx=20,
                              pady=10,
                              cursor="hand2",
