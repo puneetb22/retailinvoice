@@ -528,6 +528,7 @@ dependencies = [
     { name = "pyinstaller" },
     { name = "reportlab" },
     { name = "tkcalendar" },
+    { name = "ttkbootstrap" },
     { name = "xlsxwriter" },
 ]
 
@@ -540,6 +541,7 @@ requires-dist = [
     { name = "pyinstaller", specifier = ">=6.13.0" },
     { name = "reportlab", specifier = ">=4.4.0" },
     { name = "tkcalendar", specifier = ">=1.6.1" },
+    { name = "ttkbootstrap", specifier = ">=1.12.1" },
     { name = "xlsxwriter", specifier = ">=3.2.3" },
 ]
 
@@ -585,6 +587,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/65/3d/3406cf7963661ed89
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e9/d4/9528ea6ecb5d4394f425df651957da6f6a715b41c5b12d43d41888c14394/tkcalendar-1.6.1-py3-none-any.whl", hash = "sha256:9d3a80816a7b32d64fab696fa3d2a007fb23c87953267d5e343a38ff4cd7c15c", size = 40912 },
 ]
+
+[[package]]
+name = "ttkbootstrap"
+version = "1.12.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/da/62/c9c7c1897d59ddcea144e7c59636457d4b6e7a92f1faf1c29a96e08f2c2d/ttkbootstrap-1.12.1.tar.gz", hash = "sha256:7f599f8d52ba7f2ef48bd48359962de3682c7131b80b4e26bb9456f3c66dfee9", size = 128823 }
 
 [[package]]
 name = "tzdata"

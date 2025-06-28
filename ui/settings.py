@@ -7,6 +7,12 @@ from tkinter import ttk, messagebox
 import datetime
 from assets.styles import COLORS, FONTS, STYLES, set_theme
 from utils.config import save_config
+try:
+    import ttkbootstrap as ttk_bootstrap
+    from ttkbootstrap.themes import standard
+    TTK_BOOTSTRAP_AVAILABLE = True
+except ImportError:
+    TTK_BOOTSTRAP_AVAILABLE = False
 
 class SettingsFrame(tk.Frame):
     """Settings frame for configuring application preferences"""
@@ -361,11 +367,18 @@ class SettingsFrame(tk.Frame):
                                    fg=COLORS["text_primary"])
         theme_type_label.grid(row=0, column=0, sticky="w", pady=5)
         
-        # Available theme types
-        self.available_theme_types = [
+        # Available theme types - combine custom themes with ttkbootstrap themes
+        custom_themes = [
             "default", "modern", "classic", "minimal", "vibrant",
             "bootstrap", "material", "corporate", "nature", "sunset"
         ]
+        
+        # Add ttkbootstrap standard themes if available
+        if TTK_BOOTSTRAP_AVAILABLE:
+            ttk_themes = list(standard.STANDARD_THEMES.keys())
+            self.available_theme_types = custom_themes + ttk_themes
+        else:
+            self.available_theme_types = custom_themes
         
         self.theme_type_var = tk.StringVar(value=self.controller.config.get("theme_type", "default"))
         
@@ -431,8 +444,12 @@ class SettingsFrame(tk.Frame):
         
         self.update_theme_preview()
         
+        # Theme action buttons frame
+        theme_buttons_frame = tk.Frame(theme_section_frame, bg=COLORS["bg_primary"])
+        theme_buttons_frame.grid(row=3, column=0, columnspan=2, pady=10)
+        
         # Apply theme button
-        apply_theme_btn = tk.Button(theme_section_frame,
+        apply_theme_btn = tk.Button(theme_buttons_frame,
                                   text="Apply Theme",
                                   font=FONTS["regular"],
                                   bg=COLORS["primary"],
@@ -441,7 +458,32 @@ class SettingsFrame(tk.Frame):
                                   pady=5,
                                   cursor="hand2",
                                   command=self.apply_theme)
-        apply_theme_btn.grid(row=3, column=0, columnspan=2, pady=10)
+        apply_theme_btn.pack(side=tk.LEFT, padx=5)
+        
+        # TTK Creator button (only show if ttkbootstrap is available)
+        if TTK_BOOTSTRAP_AVAILABLE:
+            ttk_creator_btn = tk.Button(theme_buttons_frame,
+                                      text="Open Theme Creator",
+                                      font=FONTS["regular"],
+                                      bg=COLORS["info"],
+                                      fg=COLORS["text_white"],
+                                      padx=15,
+                                      pady=5,
+                                      cursor="hand2",
+                                      command=self.open_theme_creator)
+            ttk_creator_btn.pack(side=tk.LEFT, padx=5)
+            
+            # Reload themes button
+            reload_themes_btn = tk.Button(theme_buttons_frame,
+                                        text="Reload Themes",
+                                        font=FONTS["regular"],
+                                        bg=COLORS["secondary"],
+                                        fg=COLORS["text_white"],
+                                        padx=15,
+                                        pady=5,
+                                        cursor="hand2",
+                                        command=self.reload_themes)
+            reload_themes_btn.pack(side=tk.LEFT, padx=5)
         
         # Add keyboard shortcuts button
         shortcuts_btn = tk.Button(form_frame,
@@ -729,7 +771,19 @@ class SettingsFrame(tk.Frame):
     
     def get_theme_colors(self, theme_type, theme_mode):
         """Get colors for a specific theme type and mode"""
-        # Define color schemes for different theme types
+        # Check if it's a ttkbootstrap theme
+        if TTK_BOOTSTRAP_AVAILABLE and theme_type in standard.STANDARD_THEMES:
+            theme_config = standard.STANDARD_THEMES[theme_type]
+            # Extract colors from ttkbootstrap theme
+            return {
+                "primary": theme_config.get("primary", "#007bff"),
+                "secondary": theme_config.get("secondary", "#6c757d"), 
+                "success": theme_config.get("success", "#28a745"),
+                "warning": theme_config.get("warning", "#ffc107"),
+                "danger": theme_config.get("danger", "#dc3545")
+            }
+        
+        # Define color schemes for custom theme types
         theme_colors = {
             "default": {
                 "light": {"primary": "#2780e3", "secondary": "#7E8081", "success": "#3fb618", "warning": "#ff7518", "danger": "#ff0039"},
@@ -1000,3 +1054,91 @@ class SettingsFrame(tk.Frame):
         self.theme_mode_var.set(self.controller.config.get("app_theme", "light"))
         self.theme_type_var.set(self.controller.config.get("theme_type", "default"))
         self.update_theme_preview()
+    
+    def open_theme_creator(self):
+        """Open the ttkbootstrap TTK Creator"""
+        if not TTK_BOOTSTRAP_AVAILABLE:
+            messagebox.showerror("Error", "ttkbootstrap is not installed. Please install it first.")
+            return
+            
+        try:
+            import subprocess
+            import sys
+            
+            # Launch TTK Creator in a new process
+            process = subprocess.Popen([sys.executable, "-m", "ttkcreator"])
+            
+            # Show instructions
+            messagebox.showinfo(
+                "TTK Creator Launched",
+                "TTK Creator has been launched in a new window.\n\n"
+                "Instructions:\n"
+                "1. Name your theme using the name entry\n"
+                "2. Select a base theme for initial colors\n"
+                "3. Customize colors using the color picker\n"
+                "4. Click Save to save your theme\n"
+                "5. Your theme will be saved in ttkbootstrap.themes.user.py\n\n"
+                "After saving, click 'Reload Themes' to refresh the theme list.",
+                title="Theme Creator"
+            )
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", f"Failed to open theme creator: {str(e)}")
+            
+    def reload_themes(self):
+        """Reload available themes and update dropdown"""
+        if not TTK_BOOTSTRAP_AVAILABLE:
+            messagebox.showerror("Error", "ttkbootstrap is not available.")
+            return
+            
+        try:
+            # Reload the standard themes module to get any new themes
+            import importlib
+            importlib.reload(standard)
+            
+            # Update available theme types
+            custom_themes = [
+                "default", "modern", "classic", "minimal", "vibrant",
+                "bootstrap", "material", "corporate", "nature", "sunset"
+            ]
+            
+            # Add ttkbootstrap standard themes
+            ttk_themes = list(standard.STANDARD_THEMES.keys())
+            self.available_theme_types = custom_themes + ttk_themes
+            
+            # Update dropdown values
+            current_theme = self.theme_type_var.get()
+            
+            # Update the combobox values
+            theme_type_dropdown = None
+            for child in self.winfo_children():
+                if isinstance(child, tk.Frame):
+                    for subchild in child.winfo_children():
+                        if isinstance(subchild, ttk.Notebook):
+                            for tab in [subchild.nametowidget(tab_id) for tab_id in subchild.tabs()]:
+                                if "System Settings" in subchild.tab(tab, "text"):
+                                    for widget in tab.winfo_children():
+                                        if isinstance(widget, tk.Frame):
+                                            for subwidget in widget.winfo_children():
+                                                if isinstance(subwidget, tk.LabelFrame) and "Theme Settings" in subwidget.cget("text"):
+                                                    for item in subwidget.winfo_children():
+                                                        if isinstance(item, ttk.Combobox):
+                                                            theme_type_dropdown = item
+                                                            break
+            
+            if theme_type_dropdown:
+                theme_type_dropdown.configure(values=self.available_theme_types)
+                
+                # If current theme is not in new list, select first theme
+                if current_theme not in self.available_theme_types:
+                    self.theme_type_var.set(self.available_theme_types[0])
+                    
+            # Update the theme preview
+            self.update_theme_preview()
+            
+            messagebox.showinfo("Success", f"Themes reloaded successfully!\nAvailable themes: {len(self.available_theme_types)}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to reload themes: {str(e)}")
