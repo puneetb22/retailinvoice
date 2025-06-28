@@ -1168,7 +1168,7 @@ class SettingsFrame(tk.Frame):
             
             # Show instructions
             messagebox.showinfo(
-                "TTK Creator Launched",
+                "Theme Creator",
                 "TTK Creator has been launched in a new window.\n\n"
                 "Instructions:\n"
                 "1. Name your theme using the name entry\n"
@@ -1176,8 +1176,7 @@ class SettingsFrame(tk.Frame):
                 "3. Customize colors using the color picker\n"
                 "4. Click Save to save your theme\n"
                 "5. Your theme will be saved in ttkbootstrap.themes.user.py\n\n"
-                "After saving, click 'Reload Themes' to refresh the theme list.",
-                title="Theme Creator"
+                "After saving, click 'Reload Themes' to refresh the theme list."
             )
             
         except Exception as e:
