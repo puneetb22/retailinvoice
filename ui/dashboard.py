@@ -519,11 +519,6 @@ class Dashboard(tk.Frame):
         """Function to load frame based on the module name."""
         self.load_module(module_name)
 
-```python
-"""
-Main dashboard for POS system
-"""
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import datetime
