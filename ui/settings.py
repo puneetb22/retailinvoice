@@ -349,43 +349,99 @@ class SettingsFrame(tk.Frame):
                            width=10)
             entry.grid(row=i, column=1, sticky="w", pady=10, padx=10)
         
-        # Theme settings
-        theme_label = tk.Label(form_frame, 
-                              text="Application Theme:",
-                              font=FONTS["regular_bold"],
-                              bg=COLORS["bg_primary"],
-                              fg=COLORS["text_primary"])
-        theme_label.grid(row=len(fields), column=0, sticky="w", pady=10)
+        # Theme settings section
+        theme_section_frame = tk.LabelFrame(form_frame, text="Theme Settings", bg=COLORS["bg_primary"], fg=COLORS["text_primary"], font=FONTS["regular_bold"], padx=10, pady=10)
+        theme_section_frame.grid(row=len(fields), column=0, columnspan=2, sticky="ew", pady=10)
         
-        # Theme options
-        self.theme_var = tk.StringVar(value=self.controller.config.get("app_theme", "light"))
+        # Theme type selection
+        theme_type_label = tk.Label(theme_section_frame, 
+                                   text="Theme Type:",
+                                   font=FONTS["regular_bold"],
+                                   bg=COLORS["bg_primary"],
+                                   fg=COLORS["text_primary"])
+        theme_type_label.grid(row=0, column=0, sticky="w", pady=5)
         
-        theme_frame = tk.Frame(form_frame, bg=COLORS["bg_primary"])
-        theme_frame.grid(row=len(fields), column=1, sticky="w", pady=10, padx=10)
+        # Available theme types
+        self.available_theme_types = [
+            "default", "modern", "classic", "minimal", "vibrant",
+            "bootstrap", "material", "corporate", "nature", "sunset"
+        ]
+        
+        self.theme_type_var = tk.StringVar(value=self.controller.config.get("theme_type", "default"))
+        
+        theme_type_dropdown = ttk.Combobox(theme_section_frame,
+                                         textvariable=self.theme_type_var,
+                                         values=self.available_theme_types,
+                                         state="readonly",
+                                         width=15)
+        theme_type_dropdown.grid(row=0, column=1, sticky="w", pady=5, padx=10)
+        theme_type_dropdown.bind("<<ComboboxSelected>>", self.on_theme_type_change)
+        
+        # Theme mode selection (Light/Dark)
+        theme_mode_label = tk.Label(theme_section_frame, 
+                                   text="Theme Mode:",
+                                   font=FONTS["regular_bold"],
+                                   bg=COLORS["bg_primary"],
+                                   fg=COLORS["text_primary"])
+        theme_mode_label.grid(row=1, column=0, sticky="w", pady=5)
+        
+        self.theme_mode_var = tk.StringVar(value=self.controller.config.get("app_theme", "light"))
+        
+        theme_mode_frame = tk.Frame(theme_section_frame, bg=COLORS["bg_primary"])
+        theme_mode_frame.grid(row=1, column=1, sticky="w", pady=5, padx=10)
         
         # Light theme radio button
-        light_rb = tk.Radiobutton(theme_frame, 
-                                text="Light Theme",
-                                variable=self.theme_var,
+        light_rb = tk.Radiobutton(theme_mode_frame, 
+                                text="Light",
+                                variable=self.theme_mode_var,
                                 value="light",
                                 font=FONTS["regular"],
                                 bg=COLORS["bg_primary"],
                                 fg=COLORS["text_primary"],
                                 selectcolor=COLORS["bg_primary"],
-                                command=self.apply_theme)
+                                command=self.on_theme_mode_change)
         light_rb.pack(side=tk.LEFT, padx=10)
         
         # Dark theme radio button
-        dark_rb = tk.Radiobutton(theme_frame, 
-                               text="Dark Theme",
-                               variable=self.theme_var,
+        dark_rb = tk.Radiobutton(theme_mode_frame, 
+                               text="Dark",
+                               variable=self.theme_mode_var,
                                value="dark",
                                font=FONTS["regular"],
                                bg=COLORS["bg_primary"],
                                fg=COLORS["text_primary"],
                                selectcolor=COLORS["bg_primary"],
-                               command=self.apply_theme)
+                               command=self.on_theme_mode_change)
         dark_rb.pack(side=tk.LEFT, padx=10)
+        
+        # Theme preview frame
+        preview_frame = tk.Frame(theme_section_frame, bg=COLORS["bg_primary"])
+        preview_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
+        
+        preview_label = tk.Label(preview_frame,
+                               text="Preview:",
+                               font=FONTS["regular_bold"],
+                               bg=COLORS["bg_primary"],
+                               fg=COLORS["text_primary"])
+        preview_label.pack(side=tk.LEFT, padx=5)
+        
+        # Preview color swatches
+        self.preview_colors_frame = tk.Frame(preview_frame, bg=COLORS["bg_primary"])
+        self.preview_colors_frame.pack(side=tk.LEFT, padx=10)
+        
+        self.update_theme_preview()
+        
+        # Apply theme button
+        apply_theme_btn = tk.Button(theme_section_frame,
+                                  text="Apply Theme",
+                                  font=FONTS["regular"],
+                                  bg=COLORS["primary"],
+                                  fg=COLORS["text_white"],
+                                  padx=15,
+                                  pady=5,
+                                  cursor="hand2",
+                                  command=self.apply_theme)
+        apply_theme_btn.grid(row=3, column=0, columnspan=2, pady=10)
         
         # Add keyboard shortcuts button
         shortcuts_btn = tk.Button(form_frame,
@@ -577,8 +633,9 @@ class SettingsFrame(tk.Frame):
             # Update config
             self.controller.config["low_stock_threshold"] = threshold
             
-            # Update theme setting
-            self.controller.config["app_theme"] = self.theme_var.get()
+            # Update theme settings
+            self.controller.config["app_theme"] = self.theme_mode_var.get()
+            self.controller.config["theme_type"] = self.theme_type_var.get()
             
             # Save to file
             config_saved = save_config(self.controller.config)
@@ -609,13 +666,21 @@ class SettingsFrame(tk.Frame):
             else:
                 cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ("low_stock_threshold", str(threshold)))
             
-            # Save theme setting
-            theme = self.theme_var.get()
+            # Save theme mode setting
+            theme_mode = self.theme_mode_var.get()
             cursor.execute("SELECT COUNT(*) FROM settings WHERE key = ?", ("app_theme",))
             if cursor.fetchone()[0] > 0:
-                cursor.execute("UPDATE settings SET value = ? WHERE key = ?", (theme, "app_theme"))
+                cursor.execute("UPDATE settings SET value = ? WHERE key = ?", (theme_mode, "app_theme"))
             else:
-                cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ("app_theme", theme))
+                cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ("app_theme", theme_mode))
+            
+            # Save theme type setting
+            theme_type = self.theme_type_var.get()
+            cursor.execute("SELECT COUNT(*) FROM settings WHERE key = ?", ("theme_type",))
+            if cursor.fetchone()[0] > 0:
+                cursor.execute("UPDATE settings SET value = ? WHERE key = ?", (theme_type, "theme_type"))
+            else:
+                cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ("theme_type", theme_type))
                 
             conn.commit()
             conn.close()
@@ -624,14 +689,146 @@ class SettingsFrame(tk.Frame):
             print(f"Error saving system settings to database: {e}")
             return False
     
+    def on_theme_type_change(self, event=None):
+        """Handle theme type change"""
+        self.update_theme_preview()
+    
+    def on_theme_mode_change(self):
+        """Handle theme mode change"""
+        self.update_theme_preview()
+    
+    def update_theme_preview(self):
+        """Update the theme preview colors"""
+        # Clear existing preview
+        for widget in self.preview_colors_frame.winfo_children():
+            widget.destroy()
+        
+        # Get current selections
+        theme_type = self.theme_type_var.get()
+        theme_mode = self.theme_mode_var.get()
+        
+        # Generate preview colors based on theme type and mode
+        preview_colors = self.get_theme_colors(theme_type, theme_mode)
+        
+        # Create color swatches
+        for i, (color_name, color_value) in enumerate(preview_colors.items()):
+            if i >= 5:  # Limit to 5 preview colors
+                break
+            
+            color_swatch = tk.Frame(self.preview_colors_frame,
+                                  bg=color_value,
+                                  width=30,
+                                  height=20,
+                                  relief=tk.RAISED,
+                                  bd=1)
+            color_swatch.pack(side=tk.LEFT, padx=2)
+            color_swatch.pack_propagate(False)
+            
+            # Tooltip with color name
+            self.create_tooltip(color_swatch, f"{color_name}: {color_value}")
+    
+    def get_theme_colors(self, theme_type, theme_mode):
+        """Get colors for a specific theme type and mode"""
+        # Define color schemes for different theme types
+        theme_colors = {
+            "default": {
+                "light": {"primary": "#2780e3", "secondary": "#7E8081", "success": "#3fb618", "warning": "#ff7518", "danger": "#ff0039"},
+                "dark": {"primary": "#4a96e8", "secondary": "#9a9b9c", "success": "#5fc73a", "warning": "#ff9548", "danger": "#ff335a"}
+            },
+            "modern": {
+                "light": {"primary": "#6366f1", "secondary": "#64748b", "success": "#10b981", "warning": "#f59e0b", "danger": "#ef4444"},
+                "dark": {"primary": "#818cf8", "secondary": "#94a3b8", "success": "#34d399", "warning": "#fbbf24", "danger": "#f87171"}
+            },
+            "classic": {
+                "light": {"primary": "#0066cc", "secondary": "#666666", "success": "#009900", "warning": "#ff6600", "danger": "#cc0000"},
+                "dark": {"primary": "#3399ff", "secondary": "#999999", "success": "#33cc33", "warning": "#ff9933", "danger": "#ff3333"}
+            },
+            "minimal": {
+                "light": {"primary": "#000000", "secondary": "#888888", "success": "#228b22", "warning": "#ffa500", "danger": "#dc143c"},
+                "dark": {"primary": "#ffffff", "secondary": "#bbbbbb", "success": "#32cd32", "warning": "#ffd700", "danger": "#ff6347"}
+            },
+            "vibrant": {
+                "light": {"primary": "#e91e63", "secondary": "#9c27b0", "success": "#4caf50", "warning": "#ff9800", "danger": "#f44336"},
+                "dark": {"primary": "#f48fb1", "secondary": "#ce93d8", "success": "#81c784", "warning": "#ffb74d", "danger": "#e57373"}
+            },
+            "bootstrap": {
+                "light": {"primary": "#007bff", "secondary": "#6c757d", "success": "#28a745", "warning": "#ffc107", "danger": "#dc3545"},
+                "dark": {"primary": "#0d6efd", "secondary": "#adb5bd", "success": "#198754", "warning": "#fd7e14", "danger": "#dc3545"}
+            },
+            "material": {
+                "light": {"primary": "#1976d2", "secondary": "#757575", "success": "#388e3c", "warning": "#f57c00", "danger": "#d32f2f"},
+                "dark": {"primary": "#2196f3", "secondary": "#bdbdbd", "success": "#4caf50", "warning": "#ff9800", "danger": "#f44336"}
+            },
+            "corporate": {
+                "light": {"primary": "#2c3e50", "secondary": "#95a5a6", "success": "#27ae60", "warning": "#f39c12", "danger": "#e74c3c"},
+                "dark": {"primary": "#34495e", "secondary": "#bdc3c7", "success": "#2ecc71", "warning": "#f1c40f", "danger": "#e67e22"}
+            },
+            "nature": {
+                "light": {"primary": "#2e7d32", "secondary": "#8d6e63", "success": "#388e3c", "warning": "#ff8f00", "danger": "#d32f2f"},
+                "dark": {"primary": "#4caf50", "secondary": "#a1887f", "success": "#66bb6a", "warning": "#ffb300", "danger": "#ef5350"}
+            },
+            "sunset": {
+                "light": {"primary": "#ff5722", "secondary": "#795548", "success": "#4caf50", "warning": "#ff9800", "danger": "#f44336"},
+                "dark": {"primary": "#ff7043", "secondary": "#8d6e63", "success": "#66bb6a", "warning": "#ffb74d", "danger": "#ef5350"}
+            }
+        }
+        
+        return theme_colors.get(theme_type, theme_colors["default"]).get(theme_mode, theme_colors["default"]["light"])
+    
+    def create_tooltip(self, widget, text):
+        """Create a simple tooltip for a widget"""
+        def on_enter(event):
+            tooltip = tk.Toplevel()
+            tooltip.wm_overrideredirect(True)
+            tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
+            label = tk.Label(tooltip, text=text, background="lightyellow", font=FONTS["small"])
+            label.pack()
+            widget.tooltip = tooltip
+        
+        def on_leave(event):
+            if hasattr(widget, 'tooltip'):
+                widget.tooltip.destroy()
+                del widget.tooltip
+        
+        widget.bind("<Enter>", on_enter)
+        widget.bind("<Leave>", on_leave)
+    
     def apply_theme(self):
         """Apply the selected theme"""
-        theme = self.theme_var.get()
-        # Save theme setting to config
-        self.controller.config["app_theme"] = theme
+        theme_type = self.theme_type_var.get()
+        theme_mode = self.theme_mode_var.get()
+        
+        # Save theme settings to config
+        self.controller.config["theme_type"] = theme_type
+        self.controller.config["app_theme"] = theme_mode
+        
+        # Get the new colors for the selected theme
+        new_colors = self.get_theme_colors(theme_type, theme_mode)
+        
+        # Update the color scheme in styles.py
+        self.update_color_scheme(new_colors, theme_mode)
+        
         # Apply the theme
-        set_theme(theme)
-        messagebox.showinfo("Theme Changed", f"The {theme.capitalize()} theme has been applied. Some components may require restarting the application to fully update.")
+        set_theme(theme_mode)
+        
+        messagebox.showinfo("Theme Applied", f"The {theme_type.capitalize()} {theme_mode} theme has been applied. Some components may require restarting the application to fully update.")
+    
+    def update_color_scheme(self, new_colors, theme_mode):
+        """Update the color scheme with new colors"""
+        from assets.styles import LIGHT_THEME, DARK_THEME, COLORS
+        
+        # Determine which theme to update
+        target_theme = LIGHT_THEME if theme_mode == "light" else DARK_THEME
+        
+        # Update the colors
+        for color_key, color_value in new_colors.items():
+            if color_key in target_theme:
+                target_theme[color_key] = color_value
+        
+        # Update current COLORS if it matches the mode being updated
+        current_mode = self.controller.config.get("app_theme", "light")
+        if current_mode == theme_mode:
+            COLORS.update(target_theme)
         
     def show_keyboard_shortcuts(self):
         """Display keyboard shortcuts help"""
@@ -800,4 +997,6 @@ class SettingsFrame(tk.Frame):
             var.set(self.controller.config.get(key, ""))
             
         # Theme settings
-        self.theme_var.set(self.controller.config.get("app_theme", "light"))
+        self.theme_mode_var.set(self.controller.config.get("app_theme", "light"))
+        self.theme_type_var.set(self.controller.config.get("theme_type", "default"))
+        self.update_theme_preview()
