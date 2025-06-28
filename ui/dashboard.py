@@ -518,7 +518,6 @@ class Dashboard(tk.Frame):
     def show_frame(self, module_name):
         """Function to load frame based on the module name."""
         self.load_module(module_name)
-```
 
 ```python
 """
