@@ -1440,6 +1440,10 @@ class SalesFrame(tk.Frame):
         # Bind Enter key to add_item function
         dialog.bind("<Return>", lambda event: add_item())
         
+        # Bind ESC key to close dialog
+        dialog.bind("<Escape>", lambda event: on_dialog_close())
+        dialog.focus_set()
+        
         # Handle dialog close event (e.g. if user clicks X button)
         dialog.protocol("WM_DELETE_WINDOW", on_dialog_close)
         
