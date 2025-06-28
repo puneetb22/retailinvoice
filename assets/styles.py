@@ -618,11 +618,7 @@ LIGHT_THEME = {
     "text_white": "#ffffff",
     "primary_light": "#4a96e8",
     "primary_dark": "#1a66c7",
-    "secondary_dark": "#6a6d6e",
-    "success_light": "#e6fff5",
-    "danger_light": "#fff5f5",
-    "warning_light": "#fff9e6",
-    "info_light": "#f3e8ff"
+    "secondary_dark": "#6a6d6e"
 }
 
 # Dark theme color scheme - using ttkbootstrap standard format
@@ -653,11 +649,7 @@ DARK_THEME = {
     "text_white": "#ffffff",
     "primary_light": "#4a7ba6",
     "primary_dark": "#1f3a56",
-    "secondary_dark": "#2d2d2d",
-    "success_light": "#132218",
-    "danger_light": "#2d1414",
-    "warning_light": "#2d2411",
-    "info_light": "#1f1428"
+    "secondary_dark": "#2d2d2d"
 }
 
 # Default to light theme

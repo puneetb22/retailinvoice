@@ -365,9 +365,9 @@ class InventoryManagementFrame(tk.Frame):
 
         self.inventory_tree.pack(fill=tk.BOTH, expand=True)
 
-        # Color code low stock items
-        self.inventory_tree.tag_configure("low_stock", background=COLORS["warning_light"])
-        self.inventory_tree.tag_configure("out_of_stock", background=COLORS["danger_light"])
+        # Color code low stock items using existing theme colors
+        self.inventory_tree.tag_configure("low_stock", background=COLORS["warning"], foreground=COLORS["text_white"])
+        self.inventory_tree.tag_configure("out_of_stock", background=COLORS["danger"], foreground=COLORS["text_white"])
 
         # Binding for double-click to view batches
         self.inventory_tree.bind("<Double-1>", self.view_product_batches)
@@ -589,10 +589,10 @@ class InventoryManagementFrame(tk.Frame):
 
         self.alerts_tree.pack(fill=tk.BOTH, expand=True)
 
-        # Tag configurations for color coding
-        self.alerts_tree.tag_configure("expired", background=COLORS["danger_light"])
-        self.alerts_tree.tag_configure("expiring", background=COLORS["warning_light"])
-        self.alerts_tree.tag_configure("low_stock", background=COLORS["info_light"])
+        # Tag configurations for color coding using existing theme colors
+        self.alerts_tree.tag_configure("expired", background=COLORS["danger"], foreground=COLORS["text_white"])
+        self.alerts_tree.tag_configure("expiring", background=COLORS["warning"], foreground=COLORS["text_white"])
+        self.alerts_tree.tag_configure("low_stock", background=COLORS["info"], foreground=COLORS["text_white"])
 
     def load_inventory(self):
         """Load inventory data into the stock levels tab"""
