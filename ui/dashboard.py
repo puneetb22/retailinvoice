@@ -99,9 +99,14 @@ class Dashboard(tk.Frame):
         # Create navigation items
         self.create_nav_items()
 
-        # Main content area
-        self.content_frame = tk.Frame(self, bg=COLORS["bg_primary"])
-        self.content_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        # Main content area with border and distinct background
+        self.content_frame = tk.Frame(self, 
+                                    bg=COLORS["bg_white"], 
+                                    relief=tk.RAISED,
+                                    bd=2,
+                                    highlightbackground=COLORS["border"],
+                                    highlightthickness=1)
+        self.content_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Footer removed as requested
 
