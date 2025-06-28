@@ -314,8 +314,8 @@ class Dashboard(tk.Frame):
             if focused_widget == self or focused_widget == self.nav_frame:
                 nav_has_focus = True
 
-        # Only handle navigation keys if the navigation area has focus
-        if not nav_has_focus and event.keysym in ["Tab", "Up", "Down", "Left", "Right", "Return", "space"]:
+        # Only handle navigation keys if the navigation area has focus, but exclude Tab key
+        if not nav_has_focus and event.keysym in ["Up", "Down", "Left", "Right", "Return", "space"]:
             # Don't handle these keys if focus is on page components
             return
 
@@ -355,10 +355,7 @@ class Dashboard(tk.Frame):
             if messagebox.askyesno("Exit Confirmation", "Are you sure you want to exit?"):
                 self.controller.exit_application()
 
-        # For Tab key, allow normal tab navigation within the active module
-        elif event.keysym == "Tab" and not nav_has_focus:
-            # Let the normal tab navigation work within the active page
-            return
+        # Tab key is completely ignored for menu navigation - let it work normally in active page
 
     def show_inventory_alerts(self):
         """Show inventory alerts when bell icon is clicked"""

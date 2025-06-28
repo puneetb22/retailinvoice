@@ -4593,20 +4593,8 @@ class SalesFrame(tk.Frame):
         
         
         
-        # Only handle Tab if we're specifically in custom navigation mode
-        # Normal Tab should work for form fields and buttons
-        if key == "Tab" and (event.state & 0x4):  # Ctrl+Tab for custom navigation
-            if not self.current_focus:
-                self.current_focus = "products"
-            elif self.current_focus == "products":
-                self.current_focus = "cart"
-            elif self.current_focus == "cart":
-                self.current_focus = "buttons"
-            else:
-                self.current_focus = "products"
-            
-            self._update_focus()
-            return "break"  # Prevent default tab behavior
+        # Tab key is handled normally by the system for form navigation
+        # No custom Tab navigation for menu/sections
         
         # Ctrl+Shift+P to focus products
         elif ctrl and shift and key.lower() == "p":
