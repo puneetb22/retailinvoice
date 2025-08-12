@@ -737,8 +737,7 @@ class AccountingFrame(tk.Frame):
         end_label.pack(anchor="w", pady=(0, 5))
 
         self.cf_end_date_var = tk.StringVar(value=datetime.date.today().strftime("%Y-%m-%d"))
-        end_date_entry = tk.Entry```python
-(date_frame, 
+        end_date_entry = tk.Entry(date_frame, 
                                 textvariable=self.cf_end_date_var,
                                 font=FONTS["regular"],
                                 width=15)
